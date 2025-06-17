@@ -14,10 +14,20 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"watered/internal/auth"
 	"watered/internal/handlers"
+	"watered/internal/storage"
 )
 
 func main() {
+	// Initialize storage
+	store := storage.NewMemoryStorage()
+	defer store.Close()
+
+	// Initialize auth service
+	authService := auth.NewAuthService(store)
+	authHandlers := handlers.NewAuthHandlers(authService)
+
 	// Parse templates
 	templates, err := template.ParseGlob(filepath.Join("web", "templates", "*.html"))
 	if err != nil {
@@ -41,9 +51,22 @@ func main() {
 		w.Write([]byte(`{"status":"ok","service":"watered"}`))
 	})
 
+	// Authentication routes
+	r.Route("/auth", func(r chi.Router) {
+		r.Get("/login", authHandlers.LoginHandler)
+		r.Get("/callback", authHandlers.CallbackHandler)
+		r.Post("/logout", authHandlers.LogoutHandler)
+		r.Get("/status", authHandlers.StatusHandler)
+	})
+
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/status", handlers.GetStatus)
+		// Protected API routes
+		r.Group(func(r chi.Router) {
+			r.Use(authService.AuthRequired)
+			// Future plant management endpoints will go here
+		})
 	})
 
 	// Static files
@@ -51,24 +74,46 @@ func main() {
 
 	// Frontend routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		if err := templates.ExecuteTemplate(w, "index.html", nil); err != nil {
+		// Check authentication and pass user data to template
+		user, _ := authService.GetCurrentUser(r)
+		templateData := map[string]interface{}{
+			"User":          user,
+			"Authenticated": user != nil,
+		}
+		
+		if err := templates.ExecuteTemplate(w, "index.html", templateData); err != nil {
 			http.Error(w, "Template error", http.StatusInternalServerError)
 			log.Printf("Template error: %v", err)
 		}
 	})
 
 	r.Get("/login", func(w http.ResponseWriter, r *http.Request) {
+		// Redirect if already authenticated
+		if authService.IsAuthenticated(r) {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		
 		if err := templates.ExecuteTemplate(w, "login.html", nil); err != nil {
 			http.Error(w, "Template error", http.StatusInternalServerError)
 			log.Printf("Template error: %v", err)
 		}
 	})
 
-	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
-		if err := templates.ExecuteTemplate(w, "admin.html", nil); err != nil {
-			http.Error(w, "Template error", http.StatusInternalServerError)
-			log.Printf("Template error: %v", err)
-		}
+	// Protected routes
+	r.Group(func(r chi.Router) {
+		r.Use(authService.AdminRequired)
+		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+			user, _ := authService.GetCurrentUser(r)
+			templateData := map[string]interface{}{
+				"User": user,
+			}
+			
+			if err := templates.ExecuteTemplate(w, "admin.html", templateData); err != nil {
+				http.Error(w, "Template error", http.StatusInternalServerError)
+				log.Printf("Template error: %v", err)
+			}
+		})
 	})
 
 	// Get port from environment or use default

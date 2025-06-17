@@ -26,6 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Follow Go best practices and idiomatic patterns
 - Use Alpine.js for reactive frontend behavior
 - Maintain clean, readable code structure
+- Always make a new commit after a task is completed and all tests for that step are passing
 
 ## Development Setup
 

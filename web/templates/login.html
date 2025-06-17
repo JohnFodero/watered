@@ -79,13 +79,8 @@
                     this.isLoading = true;
                     
                     try {
-                        // In Task 3, this will redirect to /auth/login
-                        // For now, show a placeholder message
-                        this.showNotification('Google SSO will be implemented in Task 3!', 'warning');
-                        
-                        setTimeout(() => {
-                            window.location.href = '/';
-                        }, 2000);
+                        // Redirect to Google OAuth2 login
+                        window.location.href = '/auth/login';
                     } catch (error) {
                         this.showNotification('Login failed. Please try again.', 'error');
                         this.isLoading = false;

@@ -15,8 +15,12 @@
             <nav>
                 <ul class="nav-links">
                     <li><a href="/">Home</a></li>
-                    <li><a href="/admin">Admin</a></li>
-                    <li><a href="/login">Login</a></li>
+                    {{if .Authenticated}}
+                        {{if .User.IsAdmin}}<li><a href="/admin">Admin</a></li>{{end}}
+                        <li><form method="post" action="/auth/logout" style="display: inline;"><button type="submit" class="btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Logout</button></form></li>
+                    {{else}}
+                        <li><a href="/login">Login</a></li>
+                    {{end}}
                 </ul>
             </nav>
         </div>
@@ -42,9 +46,15 @@
                 </p>
             </div>
 
-            <div class="admin-section" x-show="!isAuthenticated">
+            {{if not .Authenticated}}
+            <div class="admin-section">
                 <p>Please <a href="/login" class="btn">Login with Google</a> to track our plant!</p>
             </div>
+            {{else}}
+            <div style="text-align: center; margin-top: 1rem;">
+                <p style="color: var(--muted-text);">Welcome back, {{.User.Name}}! 👋</p>
+            </div>
+            {{end}}
         </main>
     </div>
 
@@ -61,6 +71,7 @@
                 },
                 isLoading: false,
                 isAuthenticated: false,
+                currentUser: null,
                 notification: {
                     show: false,
                     message: '',
@@ -68,11 +79,31 @@
                 },
 
                 async init() {
+                    await this.checkAuth();
                     await this.loadPlantData();
                     // Update timer every minute
                     setInterval(() => {
                         this.$nextTick();
                     }, 60000);
+                },
+
+                async checkAuth() {
+                    try {
+                        const response = await fetch('/auth/status');
+                        const authStatus = await response.json();
+                        this.isAuthenticated = authStatus.authenticated;
+                        this.currentUser = authStatus.user;
+                    } catch (error) {
+                        console.error('Failed to check auth status:', error);
+                        this.isAuthenticated = {{.Authenticated}};
+                        {{if .Authenticated}}
+                        this.currentUser = {
+                            email: '{{.User.Email}}',
+                            name: '{{.User.Name}}',
+                            is_admin: {{.User.IsAdmin}}
+                        };
+                        {{end}}
+                    }
                 },
 
                 async loadPlantData() {
@@ -82,9 +113,8 @@
                         this.plantData = {
                             lastWatered: new Date(Date.now() - (5 * 60 * 60 * 1000)), // 5 hours ago
                             timeoutHours: 24,
-                            wateredBy: 'demo@example.com'
+                            wateredBy: this.currentUser ? this.currentUser.email : 'demo@example.com'
                         };
-                        this.isAuthenticated = true; // Simulate auth for demo
                     } catch (error) {
                         console.error('Failed to load plant data:', error);
                     }
@@ -98,7 +128,7 @@
                         // For now, just update locally
                         // In Task 4, this will POST to /api/plant/water
                         this.plantData.lastWatered = new Date();
-                        this.plantData.wateredBy = 'current-user@example.com';
+                        this.plantData.wateredBy = this.currentUser ? this.currentUser.email : 'unknown';
                         
                         this.showNotification('Plant watered successfully! 🌱', 'success');
                     } catch (error) {

@@ -1,0 +1,284 @@
+package auth
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/gorilla/sessions"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
+	"watered/internal/models"
+	"watered/internal/storage"
+)
+
+// GoogleUserInfo represents user info from Google OAuth
+type GoogleUserInfo struct {
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+}
+
+// AuthService handles authentication operations
+type AuthService struct {
+	oauth2Config *oauth2.Config
+	store        *sessions.CookieStore
+	storage      storage.Storage
+	allowedEmails map[string]bool
+	adminEmails   map[string]bool
+}
+
+// NewAuthService creates a new authentication service
+func NewAuthService(storage storage.Storage) *AuthService {
+	// Get OAuth2 credentials from environment
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	sessionSecret := os.Getenv("SESSION_SECRET")
+	
+	if clientID == "" || clientSecret == "" {
+		log.Printf("Warning: Google OAuth2 credentials not set. Using demo mode.")
+		clientID = "demo-client-id"
+		clientSecret = "demo-client-secret"
+	}
+	
+	if sessionSecret == "" {
+		sessionSecret = "development-secret-change-in-production"
+		log.Printf("Warning: SESSION_SECRET not set. Using development secret.")
+	}
+
+	// Create OAuth2 config
+	oauth2Config := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  "http://localhost:8080/auth/callback",
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+
+	// Create secure cookie store
+	store := sessions.NewCookieStore([]byte(sessionSecret))
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   24 * 60 * 60, // 24 hours
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	// Parse allowed emails
+	allowedEmails := make(map[string]bool)
+	adminEmails := make(map[string]bool)
+	
+	if allowedEmailsStr := os.Getenv("ALLOWED_EMAILS"); allowedEmailsStr != "" {
+		for _, email := range strings.Split(allowedEmailsStr, ",") {
+			allowedEmails[strings.TrimSpace(email)] = true
+		}
+	} else {
+		// Demo allowed emails
+		allowedEmails["demo@example.com"] = true
+		allowedEmails["user1@example.com"] = true
+		allowedEmails["user2@example.com"] = true
+	}
+	
+	if adminEmailsStr := os.Getenv("ADMIN_EMAILS"); adminEmailsStr != "" {
+		for _, email := range strings.Split(adminEmailsStr, ",") {
+			email = strings.TrimSpace(email)
+			adminEmails[email] = true
+			allowedEmails[email] = true // Admins are also allowed users
+		}
+	} else {
+		// Demo admin email
+		adminEmails["admin@example.com"] = true
+		allowedEmails["admin@example.com"] = true
+	}
+
+	return &AuthService{
+		oauth2Config:  oauth2Config,
+		store:         store,
+		storage:       storage,
+		allowedEmails: allowedEmails,
+		adminEmails:   adminEmails,
+	}
+}
+
+// GenerateStateToken creates a random state token for OAuth2 CSRF protection
+func (a *AuthService) GenerateStateToken() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// GetLoginURL returns the Google OAuth2 login URL
+func (a *AuthService) GetLoginURL(state string) string {
+	return a.oauth2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
+}
+
+// HandleCallback processes the OAuth2 callback
+func (a *AuthService) HandleCallback(ctx context.Context, code string) (*GoogleUserInfo, error) {
+	token, err := a.oauth2Config.Exchange(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
+	}
+
+	// Get user info from Google
+	client := a.oauth2Config.Client(ctx, token)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var userInfo GoogleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	return &userInfo, nil
+}
+
+// IsUserAllowed checks if a user email is in the whitelist
+func (a *AuthService) IsUserAllowed(email string) bool {
+	return a.allowedEmails[email]
+}
+
+// IsUserAdmin checks if a user email is in the admin list
+func (a *AuthService) IsUserAdmin(email string) bool {
+	return a.adminEmails[email]
+}
+
+// CreateSession creates a new user session
+func (a *AuthService) CreateSession(w http.ResponseWriter, r *http.Request, userInfo *GoogleUserInfo) error {
+	session, err := a.store.Get(r, "watered-session")
+	if err != nil {
+		return fmt.Errorf("failed to get session: %w", err)
+	}
+
+	// Store user info in session
+	session.Values["user_id"] = userInfo.ID
+	session.Values["user_email"] = userInfo.Email
+	session.Values["user_name"] = userInfo.Name
+	session.Values["user_picture"] = userInfo.Picture
+	session.Values["is_admin"] = a.IsUserAdmin(userInfo.Email)
+	session.Values["authenticated"] = true
+	session.Values["login_time"] = time.Now().Unix()
+
+	// Save session
+	if err := session.Save(r, w); err != nil {
+		return fmt.Errorf("failed to save session: %w", err)
+	}
+
+	// Create or update user in storage
+	user := &models.User{
+		Email:    userInfo.Email,
+		Name:     userInfo.Name,
+		IsAdmin:  a.IsUserAdmin(userInfo.Email),
+		JoinedAt: time.Now(),
+	}
+
+	if existingUser, err := a.storage.GetUser(userInfo.Email); err == nil && existingUser != nil {
+		// Update existing user
+		user.JoinedAt = existingUser.JoinedAt
+	}
+
+	if err := a.storage.CreateUser(user); err != nil {
+		log.Printf("Warning: Failed to store user in database: %v", err)
+	}
+
+	return nil
+}
+
+// GetCurrentUser returns the current authenticated user
+func (a *AuthService) GetCurrentUser(r *http.Request) (*models.User, error) {
+	session, err := a.store.Get(r, "watered-session")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	authenticated, ok := session.Values["authenticated"].(bool)
+	if !ok || !authenticated {
+		return nil, nil
+	}
+
+	email, ok := session.Values["user_email"].(string)
+	if !ok {
+		return nil, fmt.Errorf("no email in session")
+	}
+
+	name, _ := session.Values["user_name"].(string)
+	isAdmin, _ := session.Values["is_admin"].(bool)
+
+	return &models.User{
+		Email:   email,
+		Name:    name,
+		IsAdmin: isAdmin,
+	}, nil
+}
+
+// IsAuthenticated checks if the current request is authenticated
+func (a *AuthService) IsAuthenticated(r *http.Request) bool {
+	user, err := a.GetCurrentUser(r)
+	return err == nil && user != nil
+}
+
+// GetSession returns the current session
+func (a *AuthService) GetSession(r *http.Request) (*sessions.Session, error) {
+	return a.store.Get(r, "watered-session")
+}
+
+// ClearSession logs out the user by clearing their session
+func (a *AuthService) ClearSession(w http.ResponseWriter, r *http.Request) error {
+	session, err := a.store.Get(r, "watered-session")
+	if err != nil {
+		return fmt.Errorf("failed to get session: %w", err)
+	}
+
+	// Clear session values
+	session.Values = make(map[interface{}]interface{})
+	session.Options.MaxAge = -1
+
+	return session.Save(r, w)
+}
+
+// AuthRequired middleware that requires authentication
+func (a *AuthService) AuthRequired(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !a.IsAuthenticated(r) {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// AdminRequired middleware that requires admin privileges
+func (a *AuthService) AdminRequired(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, err := a.GetCurrentUser(r)
+		if err != nil || user == nil || !user.IsAdmin {
+			http.Error(w, "Admin access required", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// SetAllowedEmails sets the allowed emails (for testing)
+func (a *AuthService) SetAllowedEmails(emails map[string]bool) {
+	a.allowedEmails = emails
+}
