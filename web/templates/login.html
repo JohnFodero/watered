@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Watered</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">🌱 Watered</a>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/admin">Admin</a></li>
+                    <li><a href="/login">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <main class="login-container" x-data="loginHandler()">
+            <h1 class="login-title">🌱 Welcome to Watered</h1>
+            <p style="text-align: center; margin-bottom: 2rem; color: var(--muted-text);">
+                Sign in with Google to track your plant care
+            </p>
+
+            <div class="login-content">
+                <div x-show="!isLoading" style="text-align: center;">
+                    <button @click="loginWithGoogle()" class="btn" style="width: 100%; padding: 1rem;">
+                        📧 Sign in with Google
+                    </button>
+                </div>
+
+                <div x-show="isLoading" style="text-align: center;">
+                    <div class="pulse">
+                        <p>Redirecting to Google...</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; text-align: center;">
+                    <p style="font-size: 0.9rem; color: var(--muted-text);">
+                        Only authorized email addresses can access this app.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Demo Section (remove in production) -->
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid var(--activity-bg);">
+                <h3 style="text-align: center; color: var(--accent-color); margin-bottom: 1rem;">Demo Mode</h3>
+                <p style="text-align: center; font-size: 0.9rem; color: var(--muted-text); margin-bottom: 1rem;">
+                    Google SSO will be implemented in Task 3. For now, you can access the app directly.
+                </p>
+                <div style="text-align: center;">
+                    <a href="/" class="btn btn-secondary">Continue to Demo</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" :class="notification.type" x-show="notification.show" x-text="notification.message"></div>
+
+    <script>
+        function loginHandler() {
+            return {
+                isLoading: false,
+                notification: {
+                    show: false,
+                    message: '',
+                    type: 'success'
+                },
+
+                async loginWithGoogle() {
+                    this.isLoading = true;
+                    
+                    try {
+                        // In Task 3, this will redirect to /auth/login
+                        // For now, show a placeholder message
+                        this.showNotification('Google SSO will be implemented in Task 3!', 'warning');
+                        
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                    } catch (error) {
+                        this.showNotification('Login failed. Please try again.', 'error');
+                        this.isLoading = false;
+                    }
+                },
+
+                showNotification(message, type = 'success') {
+                    this.notification = { show: true, message, type };
+                    setTimeout(() => {
+                        this.notification.show = false;
+                    }, 3000);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

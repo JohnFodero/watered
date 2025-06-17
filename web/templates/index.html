@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watered - Plant Care Tracker</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">🌱 Watered</a>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/admin">Admin</a></li>
+                    <li><a href="/login">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <main class="main-content" x-data="plantTracker()">
+            <h1>How's Our Plant Doing?</h1>
+            <p class="timer-display" x-text="getTimerText()"></p>
+            
+            <div class="plant-container" @click="waterPlant()" :class="{ 'loading': isLoading }">
+                <div class="plant-visual" :class="getPlantStatus()"></div>
+                
+                <div class="plant-status">
+                    <div class="status-text" :class="getPlantStatus()" x-text="getStatusText()"></div>
+                    <div class="last-watered" x-text="getLastWateredText()" x-show="plantData.lastWatered"></div>
+                </div>
+                
+                <p class="plant-instruction">
+                    <span x-show="getPlantStatus() === 'healthy'">Tap the plant when you water it! 💧</span>
+                    <span x-show="getPlantStatus() === 'needs-water'">Time to water me! Tap to reset timer 🚰</span>
+                    <span x-show="getPlantStatus() === 'critical'">I need water urgently! Please tap to help me 😰</span>
+                </p>
+            </div>
+
+            <div class="admin-section" x-show="!isAuthenticated">
+                <p>Please <a href="/login" class="btn">Login with Google</a> to track our plant!</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" :class="notification.type" x-show="notification.show" x-text="notification.message"></div>
+
+    <script>
+        function plantTracker() {
+            return {
+                plantData: {
+                    lastWatered: null,
+                    timeoutHours: 24,
+                    wateredBy: null
+                },
+                isLoading: false,
+                isAuthenticated: false,
+                notification: {
+                    show: false,
+                    message: '',
+                    type: 'success'
+                },
+
+                async init() {
+                    await this.loadPlantData();
+                    // Update timer every minute
+                    setInterval(() => {
+                        this.$nextTick();
+                    }, 60000);
+                },
+
+                async loadPlantData() {
+                    try {
+                        // For now, simulate plant data since API isn't implemented yet
+                        // In Task 4, this will fetch from /api/plant
+                        this.plantData = {
+                            lastWatered: new Date(Date.now() - (5 * 60 * 60 * 1000)), // 5 hours ago
+                            timeoutHours: 24,
+                            wateredBy: 'demo@example.com'
+                        };
+                        this.isAuthenticated = true; // Simulate auth for demo
+                    } catch (error) {
+                        console.error('Failed to load plant data:', error);
+                    }
+                },
+
+                async waterPlant() {
+                    if (this.isLoading || !this.isAuthenticated) return;
+
+                    this.isLoading = true;
+                    try {
+                        // For now, just update locally
+                        // In Task 4, this will POST to /api/plant/water
+                        this.plantData.lastWatered = new Date();
+                        this.plantData.wateredBy = 'current-user@example.com';
+                        
+                        this.showNotification('Plant watered successfully! 🌱', 'success');
+                    } catch (error) {
+                        this.showNotification('Failed to water plant. Please try again.', 'error');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                getTimerText() {
+                    if (!this.plantData.lastWatered) return 'Plant has never been watered';
+                    
+                    const now = new Date();
+                    const lastWatered = new Date(this.plantData.lastWatered);
+                    const diffMs = now - lastWatered;
+                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                    if (diffHours === 0) {
+                        return `Watered ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+                    } else {
+                        return `Watered ${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                    }
+                },
+
+                getPlantStatus() {
+                    if (!this.plantData.lastWatered) return 'critical';
+                    
+                    const now = new Date();
+                    const lastWatered = new Date(this.plantData.lastWatered);
+                    const hoursSince = (now - lastWatered) / (1000 * 60 * 60);
+                    
+                    if (hoursSince < this.plantData.timeoutHours * 0.5) {
+                        return 'healthy';
+                    } else if (hoursSince < this.plantData.timeoutHours) {
+                        return 'needs-water';
+                    } else {
+                        return 'critical';
+                    }
+                },
+
+                getStatusText() {
+                    const status = this.getPlantStatus();
+                    switch (status) {
+                        case 'healthy':
+                            return 'Looking great! 🌿';
+                        case 'needs-water':
+                            return 'Getting thirsty 🌱';
+                        case 'critical':
+                            return 'Needs water now! 🥀';
+                        default:
+                            return 'Unknown status';
+                    }
+                },
+
+                getLastWateredText() {
+                    if (!this.plantData.wateredBy) return '';
+                    return `Last watered by ${this.plantData.wateredBy}`;
+                },
+
+                showNotification(message, type = 'success') {
+                    this.notification = { show: true, message, type };
+                    setTimeout(() => {
+                        this.notification.show = false;
+                    }, 3000);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

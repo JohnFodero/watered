@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Watered</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">🌱 Watered</a>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/admin">Admin</a></li>
+                    <li><a href="/login">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <main x-data="adminPanel()">
+            <h1 style="text-align: center; margin-bottom: 2rem; color: var(--accent-color);">
+                🛠️ Admin Panel
+            </h1>
+
+            <!-- Access Control -->
+            <div x-show="!isAdmin" class="admin-panel" style="text-align: center;">
+                <h2>Access Restricted</h2>
+                <p>You need admin privileges to access this panel.</p>
+                <a href="/login" class="btn">Login as Admin</a>
+            </div>
+
+            <!-- Admin Content -->
+            <div x-show="isAdmin">
+                <!-- Plant Configuration -->
+                <div class="admin-panel">
+                    <div class="admin-section">
+                        <h3>🌱 Plant Settings</h3>
+                        <div class="form-group">
+                            <label for="timeout">Watering Timeout (hours):</label>
+                            <input 
+                                type="number" 
+                                id="timeout" 
+                                x-model="config.timeoutHours"
+                                min="1" 
+                                max="168"
+                                @change="updateTimeout()"
+                            >
+                            <small style="color: var(--muted-text);">
+                                How long before the plant needs water (1-168 hours)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management -->
+                <div class="admin-panel">
+                    <div class="admin-section">
+                        <h3>👥 User Management</h3>
+                        
+                        <h4 style="margin-bottom: 1rem;">Allowed Users</h4>
+                        <div style="margin-bottom: 1rem;">
+                            <template x-for="email in config.allowedEmails" :key="email">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
+                                    <span x-text="email"></span>
+                                    <button @click="removeUser(email)" class="btn" style="background-color: var(--danger-color); padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                                        Remove
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="newEmail">Add New User:</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input 
+                                    type="email" 
+                                    id="newEmail" 
+                                    x-model="newEmail"
+                                    placeholder="user@example.com"
+                                    @keyup.enter="addUser()"
+                                >
+                                <button @click="addUser()" class="btn">Add</button>
+                            </div>
+                        </div>
+
+                        <h4 style="margin: 2rem 0 1rem 0;">Admin Users</h4>
+                        <div>
+                            <template x-for="email in config.adminEmails" :key="email">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
+                                    <span x-text="email"></span>
+                                    <span style="font-size: 0.8rem; color: var(--accent-color);">Admin</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plant History -->
+                <div class="admin-panel">
+                    <div class="admin-section">
+                        <h3>📊 Plant History</h3>
+                        <div style="margin-bottom: 1rem;">
+                            <p><strong>Current Status:</strong> <span x-text="getPlantStatusText()" :class="getPlantStatusClass()"></span></p>
+                            <p><strong>Last Watered:</strong> <span x-text="getLastWateredText()"></span></p>
+                            <p><strong>Watered By:</strong> <span x-text="plantData.wateredBy || 'Unknown'"></span></p>
+                        </div>
+                        
+                        <button @click="resetPlantData()" class="btn" style="background-color: var(--warning-color); color: var(--primary-text);">
+                            Reset Plant Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="admin-panel">
+                    <div class="admin-section">
+                        <h3>⚙️ System Status</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div style="text-align: center; padding: 1rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
+                                <h4>Total Users</h4>
+                                <span style="font-size: 2rem; color: var(--accent-color);" x-text="config.allowedEmails.length"></span>
+                            </div>
+                            <div style="text-align: center; padding: 1rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
+                                <h4>Timeout Setting</h4>
+                                <span style="font-size: 2rem; color: var(--accent-color);" x-text="config.timeoutHours + 'h'"></span>
+                            </div>
+                            <div style="text-align: center; padding: 1rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
+                                <h4>System Status</h4>
+                                <span style="font-size: 2rem; color: var(--success-color);">✅</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" :class="notification.type" x-show="notification.show" x-text="notification.message"></div>
+
+    <script>
+        function adminPanel() {
+            return {
+                isAdmin: true, // Demo mode - will be validated via auth in Task 3
+                config: {
+                    timeoutHours: 24,
+                    allowedEmails: ['user1@example.com', 'user2@example.com'],
+                    adminEmails: ['admin@example.com']
+                },
+                plantData: {
+                    lastWatered: new Date(Date.now() - (8 * 60 * 60 * 1000)), // 8 hours ago
+                    wateredBy: 'user1@example.com'
+                },
+                newEmail: '',
+                notification: {
+                    show: false,
+                    message: '',
+                    type: 'success'
+                },
+
+                async init() {
+                    await this.loadConfig();
+                },
+
+                async loadConfig() {
+                    try {
+                        // In Task 5, this will fetch from /admin/config
+                        // For now, use demo data
+                        console.log('Admin config loaded (demo mode)');
+                    } catch (error) {
+                        console.error('Failed to load admin config:', error);
+                    }
+                },
+
+                async updateTimeout() {
+                    try {
+                        // In Task 5, this will PUT to /admin/config/timeout
+                        this.showNotification(`Timeout updated to ${this.config.timeoutHours} hours`, 'success');
+                    } catch (error) {
+                        this.showNotification('Failed to update timeout', 'error');
+                    }
+                },
+
+                async addUser() {
+                    if (!this.newEmail.trim()) return;
+                    
+                    if (this.config.allowedEmails.includes(this.newEmail)) {
+                        this.showNotification('User already exists', 'warning');
+                        return;
+                    }
+
+                    try {
+                        // In Task 5, this will POST to /admin/users
+                        this.config.allowedEmails.push(this.newEmail);
+                        this.showNotification(`Added ${this.newEmail} to allowed users`, 'success');
+                        this.newEmail = '';
+                    } catch (error) {
+                        this.showNotification('Failed to add user', 'error');
+                    }
+                },
+
+                async removeUser(email) {
+                    try {
+                        // In Task 5, this will DELETE to /admin/users/:email
+                        this.config.allowedEmails = this.config.allowedEmails.filter(e => e !== email);
+                        this.showNotification(`Removed ${email} from allowed users`, 'success');
+                    } catch (error) {
+                        this.showNotification('Failed to remove user', 'error');
+                    }
+                },
+
+                async resetPlantData() {
+                    if (!confirm('Are you sure you want to reset the plant data?')) return;
+
+                    try {
+                        // In Task 5, this will POST to /admin/plant/reset
+                        this.plantData = {
+                            lastWatered: null,
+                            wateredBy: null
+                        };
+                        this.showNotification('Plant data reset successfully', 'success');
+                    } catch (error) {
+                        this.showNotification('Failed to reset plant data', 'error');
+                    }
+                },
+
+                getPlantStatusText() {
+                    if (!this.plantData.lastWatered) return 'Never watered';
+                    
+                    const now = new Date();
+                    const lastWatered = new Date(this.plantData.lastWatered);
+                    const hoursSince = (now - lastWatered) / (1000 * 60 * 60);
+                    
+                    if (hoursSince < this.config.timeoutHours * 0.5) {
+                        return 'Healthy';
+                    } else if (hoursSince < this.config.timeoutHours) {
+                        return 'Needs Water';
+                    } else {
+                        return 'Critical';
+                    }
+                },
+
+                getPlantStatusClass() {
+                    const status = this.getPlantStatusText().toLowerCase().replace(' ', '-');
+                    return `status-text ${status === 'healthy' ? 'healthy' : status === 'needs-water' ? 'needs-water' : 'critical'}`;
+                },
+
+                getLastWateredText() {
+                    if (!this.plantData.lastWatered) return 'Never';
+                    return new Date(this.plantData.lastWatered).toLocaleString();
+                },
+
+                showNotification(message, type = 'success') {
+                    this.notification = { show: true, message, type };
+                    setTimeout(() => {
+                        this.notification.show = false;
+                    }, 3000);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
