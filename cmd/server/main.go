@@ -57,6 +57,8 @@ func main() {
 		r.Get("/callback", authHandlers.CallbackHandler)
 		r.Post("/logout", authHandlers.LogoutHandler)
 		r.Get("/status", authHandlers.StatusHandler)
+		// Demo routes (only available in demo mode)
+		r.HandleFunc("/demo-login", authHandlers.DemoLoginHandler)
 	})
 
 	// API routes

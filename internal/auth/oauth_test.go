@@ -294,6 +294,82 @@ func TestAdminRequiredMiddleware(t *testing.T) {
 	}
 }
 
+func TestCreateDemoSession(t *testing.T) {
+	store := storage.NewMemoryStorage()
+	defer store.Close()
+	
+	authService := NewAuthService(store)
+
+	// Test demo mode detection
+	if !authService.IsDemoMode() {
+		t.Error("Expected service to be in demo mode when no credentials are set")
+	}
+
+	// Create test request and response
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	// Test demo session creation
+	err := authService.CreateDemoSession(w, req, "demo@example.com", "Demo User", false)
+	if err != nil {
+		t.Fatalf("Failed to create demo session: %v", err)
+	}
+
+	// Test getting current user from demo session
+	cookies := w.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("Expected session cookie to be set")
+	}
+
+	// Create new request with session cookie
+	req2 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range cookies {
+		req2.AddCookie(cookie)
+	}
+
+	user, err := authService.GetCurrentUser(req2)
+	if err != nil {
+		t.Fatalf("Failed to get current user: %v", err)
+	}
+
+	if user == nil {
+		t.Fatal("Expected user to be returned")
+	}
+
+	if user.Email != "demo@example.com" {
+		t.Errorf("Expected email 'demo@example.com', got '%s'", user.Email)
+	}
+
+	if user.Name != "Demo User" {
+		t.Errorf("Expected name 'Demo User', got '%s'", user.Name)
+	}
+
+	// Test authentication check
+	if !authService.IsAuthenticated(req2) {
+		t.Error("Expected user to be authenticated")
+	}
+}
+
+func TestDemoSessionWithUnauthorizedEmail(t *testing.T) {
+	store := storage.NewMemoryStorage()
+	defer store.Close()
+	
+	authService := NewAuthService(store)
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+
+	// Try to create demo session with unauthorized email
+	err := authService.CreateDemoSession(w, req, "unauthorized@example.com", "Unauthorized User", false)
+	if err == nil {
+		t.Error("Expected error for unauthorized email")
+	}
+
+	if err.Error() != "user not in allowlist" {
+		t.Errorf("Expected 'user not in allowlist' error, got '%s'", err.Error())
+	}
+}
+
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
 	return len(substr) <= len(s) && (substr == "" || s[len(s)-len(substr):] == substr || 

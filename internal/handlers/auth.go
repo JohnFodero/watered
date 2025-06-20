@@ -123,6 +123,118 @@ func (h *AuthHandlers) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+// DemoLoginHandler provides demo authentication for testing (only in demo mode)
+func (h *AuthHandlers) DemoLoginHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.authService.IsDemoMode() {
+		http.Error(w, "Demo login only available in demo mode", http.StatusNotFound)
+		return
+	}
+
+	// Handle POST for demo login
+	if r.Method == "POST" {
+		email := r.FormValue("email")
+		name := r.FormValue("name")
+		isAdmin := r.FormValue("admin") == "true"
+
+		if email == "" {
+			http.Error(w, "Email is required", http.StatusBadRequest)
+			return
+		}
+		
+		if name == "" {
+			name = "Demo User"
+		}
+
+		// Create demo session
+		if err := h.authService.CreateDemoSession(w, r, email, name, isAdmin); err != nil {
+			log.Printf("Failed to create demo session: %v", err)
+			http.Error(w, "Failed to create demo session: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		log.Printf("Demo user %s (%s) logged in successfully", name, email)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	// Show demo login form
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Login - Watered</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">🌱 Watered</a>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/login">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <main class="login-container">
+            <h1 class="login-title">🧪 Demo Login</h1>
+            <p style="text-align: center; margin-bottom: 2rem; color: var(--muted-text);">
+                Test authentication without Google OAuth
+            </p>
+
+            <form method="post" style="margin-bottom: 2rem;">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <select id="email" name="email" required>
+                        <option value="">Select a demo user...</option>
+                        <option value="demo@example.com">demo@example.com (Regular User)</option>
+                        <option value="user1@example.com">user1@example.com (Regular User)</option>
+                        <option value="user2@example.com">user2@example.com (Regular User)</option>
+                        <option value="admin@example.com">admin@example.com (Admin)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="name">Display Name:</label>
+                    <input type="text" id="name" name="name" placeholder="Demo User" />
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="admin" value="true" /> 
+                        Login as Admin (only works for admin@example.com)
+                    </label>
+                </div>
+
+                <button type="submit" class="btn" style="width: 100%;">🚀 Demo Login</button>
+            </form>
+
+            <div style="background-color: var(--secondary-bg); padding: 1rem; border-radius: var(--border-radius); margin-top: 1rem;">
+                <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color);">Demo Mode Instructions:</h4>
+                <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem; color: var(--muted-text);">
+                    <li>Choose any of the pre-configured demo users</li>
+                    <li>Only admin@example.com can access admin features</li>
+                    <li>Sessions work exactly like real Google OAuth</li>
+                    <li>You can logout and test different users</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 1rem;">
+                <a href="/login" class="btn btn-secondary">← Back to Real Login</a>
+            </div>
+        </main>
+    </div>
+</body>
+</html>`
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(html))
+}
+
 // StatusHandler returns the current authentication status
 func (h *AuthHandlers) StatusHandler(w http.ResponseWriter, r *http.Request) {
 	type UserResponse struct {

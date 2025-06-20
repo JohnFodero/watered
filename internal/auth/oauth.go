@@ -46,7 +46,8 @@ func NewAuthService(storage storage.Storage) *AuthService {
 	sessionSecret := os.Getenv("SESSION_SECRET")
 	
 	if clientID == "" || clientSecret == "" {
-		log.Printf("Warning: Google OAuth2 credentials not set. Using demo mode.")
+		log.Printf("Warning: Google OAuth2 credentials not set. Demo mode enabled.")
+		log.Printf("Visit /auth/demo-login to test authentication without Google OAuth.")
 		clientID = "demo-client-id"
 		clientSecret = "demo-client-secret"
 	}
@@ -281,4 +282,32 @@ func (a *AuthService) AdminRequired(next http.Handler) http.Handler {
 // SetAllowedEmails sets the allowed emails (for testing)
 func (a *AuthService) SetAllowedEmails(emails map[string]bool) {
 	a.allowedEmails = emails
+}
+
+// IsDemoMode checks if we're running in demo mode (no real Google credentials)
+func (a *AuthService) IsDemoMode() bool {
+	return a.oauth2Config.ClientID == "demo-client-id"
+}
+
+// CreateDemoSession creates a demo session for testing (bypasses Google OAuth)
+func (a *AuthService) CreateDemoSession(w http.ResponseWriter, r *http.Request, email string, name string, isAdmin bool) error {
+	if !a.IsDemoMode() {
+		return fmt.Errorf("demo sessions only available in demo mode")
+	}
+
+	// Check if user is allowed
+	if !a.IsUserAllowed(email) {
+		return fmt.Errorf("user not in allowlist")
+	}
+
+	// Create demo user info
+	userInfo := &GoogleUserInfo{
+		ID:            "demo-" + email,
+		Email:         email,
+		VerifiedEmail: true,
+		Name:          name,
+		Picture:       "https://via.placeholder.com/150?text=" + name[0:1],
+	}
+
+	return a.CreateSession(w, r, userInfo)
 }
