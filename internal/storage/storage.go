@@ -9,15 +9,15 @@ type Storage interface {
 	// Plant operations
 	GetPlantState() (*models.PlantState, error)
 	UpdatePlantState(state *models.PlantState) error
-	
+
 	// User operations
 	GetUser(email string) (*models.User, error)
 	CreateUser(user *models.User) error
-	
+
 	// Admin operations
 	GetAdminConfig() (*models.AdminConfig, error)
 	UpdateAdminConfig(config *models.AdminConfig) error
-	
+
 	// Close the storage connection
 	Close() error
 }

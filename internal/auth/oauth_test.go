@@ -76,7 +76,7 @@ func TestNewAuthService(t *testing.T) {
 func TestGenerateStateToken(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	token1, err := authService.GenerateStateToken()
@@ -101,7 +101,7 @@ func TestGenerateStateToken(t *testing.T) {
 func TestGetLoginURL(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	state := "test-state"
@@ -124,7 +124,7 @@ func TestGetLoginURL(t *testing.T) {
 func TestCreateAndGetSession(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	// Create test request and response
@@ -188,7 +188,7 @@ func TestCreateAndGetSession(t *testing.T) {
 func TestClearSession(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	// Create and authenticate user
@@ -242,7 +242,7 @@ func TestClearSession(t *testing.T) {
 func TestAuthRequiredMiddleware(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	// Test handler that should only be called if authenticated
@@ -272,7 +272,7 @@ func TestAuthRequiredMiddleware(t *testing.T) {
 func TestAdminRequiredMiddleware(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	// Test handler that should only be called if admin
@@ -297,7 +297,7 @@ func TestAdminRequiredMiddleware(t *testing.T) {
 func TestCreateDemoSession(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	// Test demo mode detection
@@ -353,7 +353,7 @@ func TestCreateDemoSession(t *testing.T) {
 func TestDemoSessionWithUnauthorizedEmail(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := NewAuthService(store)
 
 	req := httptest.NewRequest("GET", "/", nil)
@@ -372,14 +372,14 @@ func TestDemoSessionWithUnauthorizedEmail(t *testing.T) {
 
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
-	return len(substr) <= len(s) && (substr == "" || s[len(s)-len(substr):] == substr || 
-		   len(s) >= len(substr) && (s[:len(substr)] == substr || 
-		   func() bool {
-			   for i := 0; i <= len(s)-len(substr); i++ {
-				   if s[i:i+len(substr)] == substr {
-					   return true
-				   }
-			   }
-			   return false
-		   }()))
+	return len(substr) <= len(s) && (substr == "" || s[len(s)-len(substr):] == substr ||
+		len(s) >= len(substr) && (s[:len(substr)] == substr ||
+			func() bool {
+				for i := 0; i <= len(s)-len(substr); i++ {
+					if s[i:i+len(substr)] == substr {
+						return true
+					}
+				}
+				return false
+			}()))
 }

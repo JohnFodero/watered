@@ -122,28 +122,115 @@ db-init:
 db-reset:
     @echo "🗄️  Database reset will be implemented in Task 4"
 
-# Docker Commands (for future use)
-# ===============================
+# Docker Commands
+# ===============
 
 # Build Docker image
 docker-build:
     @echo "🐳 Building Docker image..."
     docker build -t watered:latest .
+    @echo "✅ Docker image built: watered:latest"
 
-# Run with Docker
+# Build Docker image with no cache
+docker-build-fresh:
+    @echo "🐳 Building Docker image (no cache)..."
+    docker build --no-cache -t watered:latest .
+    @echo "✅ Docker image built: watered:latest"
+
+# Run with Docker (development mode)
 docker-run:
     @echo "🐳 Running with Docker..."
+    @echo "💡 Demo login available at: http://localhost:8080/auth/demo-login?simple=true"
+    docker run -p 8080:8080 watered:latest
+
+# Run with Docker (production mode with env file)
+docker-run-prod:
+    @echo "🐳 Running with Docker (production mode)..."
+    @if [ ! -f .env ]; then echo "❌ .env file not found! Create one first."; exit 1; fi
     docker run -p 8080:8080 --env-file .env watered:latest
 
-# Docker compose up
+# Docker compose up (development)
 docker-up:
-    @echo "🐳 Starting with Docker Compose..."
+    @echo "🐳 Starting with Docker Compose (development mode)..."
+    @echo "💡 Demo login available at: http://localhost:8080/auth/demo-login?simple=true"
     docker-compose up --build
+
+# Docker compose up (production with nginx)
+docker-up-prod:
+    @echo "🐳 Starting with Docker Compose (production mode)..."
+    @echo "💡 App available at: http://localhost"
+    docker-compose --profile production up --build
+
+# Docker compose up in background
+docker-up-detached:
+    @echo "🐳 Starting with Docker Compose (background)..."
+    docker-compose up --build -d
+    @echo "✅ Services started in background"
+    @echo "📜 View logs with: just docker-logs"
+    @echo "🛑 Stop with: just docker-down"
 
 # Docker compose down
 docker-down:
     @echo "🐳 Stopping Docker Compose..."
-    docker-compose down
+    docker-compose --profile production down
+    @echo "✅ Services stopped"
+
+# View Docker compose logs
+docker-logs:
+    @echo "📜 Viewing Docker Compose logs..."
+    docker-compose logs -f
+
+# Restart Docker services
+docker-restart:
+    @echo "🔄 Restarting Docker services..."
+    docker-compose restart
+    @echo "✅ Services restarted"
+
+# Clean Docker resources
+docker-clean:
+    @echo "🧹 Cleaning Docker resources..."
+    docker-compose down --volumes --remove-orphans
+    docker system prune -f
+    @echo "✅ Docker resources cleaned"
+
+# Show Docker status
+docker-status:
+    @echo "🐳 Docker Status"
+    @echo "==============="
+    @echo ""
+    @echo "🖼️  Images:"
+    @docker images | grep -E "(watered|nginx)" || echo "   No watered images found"
+    @echo ""
+    @echo "📦 Containers:"
+    @docker ps -a | grep -E "(watered|nginx)" || echo "   No watered containers found"
+    @echo ""
+    @echo "🌐 Networks:"
+    @docker network ls | grep watered || echo "   No watered networks found"
+
+# Enter running Docker container
+docker-shell:
+    @echo "🐚 Entering running watered container..."
+    @CONTAINER_ID=$$(docker ps -q -f "ancestor=watered:latest" | head -1); \
+    if [ -z "$$CONTAINER_ID" ]; then \
+        echo "❌ No running watered container found. Start with 'just docker-up'"; \
+        exit 1; \
+    else \
+        docker exec -it $$CONTAINER_ID /bin/sh; \
+    fi
+
+# Test Docker container health
+docker-health:
+    @echo "🏥 Checking Docker container health..."
+    @CONTAINER_ID=$$(docker ps -q -f "ancestor=watered:latest" | head -1); \
+    if [ -z "$$CONTAINER_ID" ]; then \
+        echo "❌ No running watered container found"; \
+        exit 1; \
+    else \
+        echo "📊 Container health:"; \
+        docker inspect $$CONTAINER_ID --format='{{{{.State.Health.Status}}}}' 2>/dev/null || echo "No health check configured"; \
+        echo "🌐 Testing HTTP endpoint:"; \
+        curl -s -o /dev/null -w "HTTP %{http_code} - %{time_total}s\n" http://localhost:8080/health || echo "❌ Health check failed"; \
+    fi
 
 # Setup Commands
 # =============

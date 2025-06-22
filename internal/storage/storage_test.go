@@ -25,9 +25,11 @@ func TestMemoryStorage_PlantOperations(t *testing.T) {
 	plantState := &models.PlantState{
 		ID:           1,
 		Name:         "Test Plant",
-		LastWatered:  now,
+		LastWatered:  &now,
 		TimeoutHours: 24,
 		WateredBy:    "test@example.com",
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	err = storage.UpdatePlantState(plantState)

@@ -16,6 +16,7 @@ import (
 
 	"watered/internal/auth"
 	"watered/internal/handlers"
+	"watered/internal/services"
 	"watered/internal/storage"
 )
 
@@ -24,9 +25,14 @@ func main() {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
 
-	// Initialize auth service
+	// Initialize services
 	authService := auth.NewAuthService(store)
+	plantService := services.NewPlantService(store)
+
+	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(authService)
+	plantHandlers := handlers.NewPlantHandlers(plantService, authService)
+	adminHandlers := handlers.NewAdminHandler(store)
 
 	// Parse templates
 	templates, err := template.ParseGlob(filepath.Join("web", "templates", "*.html"))
@@ -64,11 +70,45 @@ func main() {
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/status", handlers.GetStatus)
-		// Protected API routes
-		r.Group(func(r chi.Router) {
-			r.Use(authService.AuthRequired)
-			// Future plant management endpoints will go here
+
+		// Plant API routes
+		r.Route("/plant", func(r chi.Router) {
+			// Public plant endpoints (read-only)
+			r.Get("/", plantHandlers.GetPlantHandler)
+			r.Get("/status", plantHandlers.GetPlantStatusHandler)
+			r.Get("/timer", plantHandlers.GetPlantTimerHandler)
+
+			// Protected plant endpoints (require authentication)
+			r.Group(func(r chi.Router) {
+				r.Use(authService.AuthRequired)
+				r.Post("/water", plantHandlers.WaterPlantHandler)
+			})
+
+			// Admin-only plant endpoints
+			r.Group(func(r chi.Router) {
+				r.Use(authService.AdminRequired)
+				r.Put("/settings", plantHandlers.UpdatePlantSettingsHandler)
+				r.Post("/reset", plantHandlers.ResetPlantHandler)
+			})
 		})
+	})
+
+	// Admin API routes
+	r.Route("/admin", func(r chi.Router) {
+		r.Use(authService.AdminRequired)
+
+		// Configuration endpoints
+		r.Get("/config", adminHandlers.GetConfigHandler)
+		r.Put("/config/timeout", adminHandlers.UpdateTimeoutHandler)
+
+		// User management endpoints
+		r.Get("/users", adminHandlers.GetUsersHandler)
+		r.Post("/users", adminHandlers.AddUserHandler)
+		r.Delete("/users/{email}", adminHandlers.RemoveUserHandler)
+
+		// History and statistics endpoints
+		r.Get("/history", adminHandlers.GetHistoryHandler)
+		r.Get("/stats", adminHandlers.GetStatsHandler)
 	})
 
 	// Static files
@@ -82,7 +122,7 @@ func main() {
 			"User":          user,
 			"Authenticated": user != nil,
 		}
-		
+
 		if err := templates.ExecuteTemplate(w, "index.html", templateData); err != nil {
 			http.Error(w, "Template error", http.StatusInternalServerError)
 			log.Printf("Template error: %v", err)
@@ -95,7 +135,7 @@ func main() {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
-		
+
 		if err := templates.ExecuteTemplate(w, "login.html", nil); err != nil {
 			http.Error(w, "Template error", http.StatusInternalServerError)
 			log.Printf("Template error: %v", err)
@@ -110,7 +150,7 @@ func main() {
 			templateData := map[string]interface{}{
 				"User": user,
 			}
-			
+
 			if err := templates.ExecuteTemplate(w, "admin.html", templateData); err != nil {
 				http.Error(w, "Template error", http.StatusInternalServerError)
 				log.Printf("Template error: %v", err)

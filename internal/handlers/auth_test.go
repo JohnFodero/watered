@@ -13,7 +13,7 @@ import (
 func TestAuthHandlers_LoginHandler(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := auth.NewAuthService(store)
 	authHandlers := NewAuthHandlers(authService)
 
@@ -41,7 +41,7 @@ func TestAuthHandlers_LoginHandler(t *testing.T) {
 func TestAuthHandlers_StatusHandler(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := auth.NewAuthService(store)
 	authHandlers := NewAuthHandlers(authService)
 
@@ -73,7 +73,7 @@ func TestAuthHandlers_StatusHandler(t *testing.T) {
 func TestAuthHandlers_StatusHandler_Authenticated(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := auth.NewAuthService(store)
 	authHandlers := NewAuthHandlers(authService)
 
@@ -131,7 +131,7 @@ func TestAuthHandlers_StatusHandler_Authenticated(t *testing.T) {
 func TestAuthHandlers_LogoutHandler(t *testing.T) {
 	store := storage.NewMemoryStorage()
 	defer store.Close()
-	
+
 	authService := auth.NewAuthService(store)
 	authHandlers := NewAuthHandlers(authService)
 
@@ -174,13 +174,13 @@ func TestAuthHandlers_LogoutHandler(t *testing.T) {
 
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
-	return len(substr) <= len(s) && (substr == "" || 
-		   func() bool {
-			   for i := 0; i <= len(s)-len(substr); i++ {
-				   if s[i:i+len(substr)] == substr {
-					   return true
-				   }
-			   }
-			   return false
-		   }())
+	return len(substr) <= len(s) && (substr == "" ||
+		func() bool {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+			return false
+		}())
 }

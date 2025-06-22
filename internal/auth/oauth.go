@@ -31,9 +31,9 @@ type GoogleUserInfo struct {
 
 // AuthService handles authentication operations
 type AuthService struct {
-	oauth2Config *oauth2.Config
-	store        *sessions.CookieStore
-	storage      storage.Storage
+	oauth2Config  *oauth2.Config
+	store         *sessions.CookieStore
+	storage       storage.Storage
 	allowedEmails map[string]bool
 	adminEmails   map[string]bool
 }
@@ -44,14 +44,14 @@ func NewAuthService(storage storage.Storage) *AuthService {
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
 	sessionSecret := os.Getenv("SESSION_SECRET")
-	
+
 	if clientID == "" || clientSecret == "" {
 		log.Printf("Warning: Google OAuth2 credentials not set. Demo mode enabled.")
 		log.Printf("Visit /auth/demo-login to test authentication without Google OAuth.")
 		clientID = "demo-client-id"
 		clientSecret = "demo-client-secret"
 	}
-	
+
 	if sessionSecret == "" {
 		sessionSecret = "development-secret-change-in-production"
 		log.Printf("Warning: SESSION_SECRET not set. Using development secret.")
@@ -82,7 +82,7 @@ func NewAuthService(storage storage.Storage) *AuthService {
 	// Parse allowed emails
 	allowedEmails := make(map[string]bool)
 	adminEmails := make(map[string]bool)
-	
+
 	if allowedEmailsStr := os.Getenv("ALLOWED_EMAILS"); allowedEmailsStr != "" {
 		for _, email := range strings.Split(allowedEmailsStr, ",") {
 			allowedEmails[strings.TrimSpace(email)] = true
@@ -92,8 +92,9 @@ func NewAuthService(storage storage.Storage) *AuthService {
 		allowedEmails["demo@example.com"] = true
 		allowedEmails["user1@example.com"] = true
 		allowedEmails["user2@example.com"] = true
+		allowedEmails["test@example.com"] = true
 	}
-	
+
 	if adminEmailsStr := os.Getenv("ADMIN_EMAILS"); adminEmailsStr != "" {
 		for _, email := range strings.Split(adminEmailsStr, ",") {
 			email = strings.TrimSpace(email)

@@ -107,7 +107,7 @@ func (h *AuthHandlers) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandlers) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Get current user for logging
 	user, _ := h.authService.GetCurrentUser(r)
-	
+
 	// Clear session
 	if err := h.authService.ClearSession(w, r); err != nil {
 		log.Printf("Failed to clear session: %v", err)
@@ -130,6 +130,31 @@ func (h *AuthHandlers) DemoLoginHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Handle GET for simple demo login (auto-login test user)
+	if r.Method == "GET" {
+		// Check if user is requesting a simple login
+		if r.URL.Query().Get("simple") == "true" {
+			// Create demo session with default test user
+			if err := h.authService.CreateDemoSession(w, r, "test@example.com", "Demo User", false); err != nil {
+				log.Printf("Failed to create demo session: %v", err)
+				http.Error(w, "Failed to create demo session: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			log.Printf("Demo user %s (%s) logged in successfully", "Demo User", "test@example.com")
+
+			// Return JSON response for API users
+			if r.Header.Get("Accept") == "application/json" {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(`{"success": true, "message": "Demo login successful", "user": {"email": "test@example.com", "name": "Demo User"}}`))
+				return
+			}
+
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
 	// Handle POST for demo login
 	if r.Method == "POST" {
 		email := r.FormValue("email")
@@ -140,7 +165,7 @@ func (h *AuthHandlers) DemoLoginHandler(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, "Email is required", http.StatusBadRequest)
 			return
 		}
-		
+
 		if name == "" {
 			name = "Demo User"
 		}
