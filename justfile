@@ -153,18 +153,18 @@ docker-run-prod:
 docker-up:
     @echo "🐳 Starting with Docker Compose (development mode)..."
     @echo "💡 Demo login available at: http://localhost:8080/auth/demo-login?simple=true"
-    docker-compose up --build
+    docker compose up --build
 
 # Docker compose up (production with nginx)
 docker-up-prod:
     @echo "🐳 Starting with Docker Compose (production mode)..."
     @echo "💡 App available at: http://localhost"
-    docker-compose --profile production up --build
+    docker compose --profile production up --build
 
 # Docker compose up in background
 docker-up-detached:
     @echo "🐳 Starting with Docker Compose (background)..."
-    docker-compose up --build -d
+    docker compose up --build -d
     @echo "✅ Services started in background"
     @echo "📜 View logs with: just docker-logs"
     @echo "🛑 Stop with: just docker-down"
@@ -172,24 +172,24 @@ docker-up-detached:
 # Docker compose down
 docker-down:
     @echo "🐳 Stopping Docker Compose..."
-    docker-compose --profile production down
+    docker compose --profile production down
     @echo "✅ Services stopped"
 
 # View Docker compose logs
 docker-logs:
     @echo "📜 Viewing Docker Compose logs..."
-    docker-compose logs -f
+    docker compose logs -f
 
 # Restart Docker services
 docker-restart:
     @echo "🔄 Restarting Docker services..."
-    docker-compose restart
+    docker compose restart
     @echo "✅ Services restarted"
 
 # Clean Docker resources
 docker-clean:
     @echo "🧹 Cleaning Docker resources..."
-    docker-compose down --volumes --remove-orphans
+    docker compose down --volumes --remove-orphans
     docker system prune -f
     @echo "✅ Docker resources cleaned"
 
