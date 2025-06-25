@@ -1,0 +1,1949 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>server: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">watered/cmd/server/main.go (0.0%)</option>
+				
+				<option value="file1">watered/internal/auth/oauth.go (77.1%)</option>
+				
+				<option value="file2">watered/internal/handlers/admin.go (67.8%)</option>
+				
+				<option value="file3">watered/internal/handlers/auth.go (22.2%)</option>
+				
+				<option value="file4">watered/internal/handlers/plant.go (63.6%)</option>
+				
+				<option value="file5">watered/internal/handlers/status.go (66.7%)</option>
+				
+				<option value="file6">watered/internal/logger/logger.go (0.0%)</option>
+				
+				<option value="file7">watered/internal/models/plant.go (89.6%)</option>
+				
+				<option value="file8">watered/internal/services/plant.go (82.3%)</option>
+				
+				<option value="file9">watered/internal/storage/storage.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "context"
+        "html/template"
+        "log"
+        "net/http"
+        "os"
+        "os/signal"
+        "path/filepath"
+        "syscall"
+        "time"
+
+        "github.com/go-chi/chi/v5"
+        "github.com/go-chi/chi/v5/middleware"
+
+        "watered/internal/auth"
+        "watered/internal/handlers"
+        "watered/internal/services"
+        "watered/internal/storage"
+)
+
+func main() <span class="cov0" title="0">{
+        // Initialize storage
+        store := storage.NewMemoryStorage()
+        defer store.Close()
+
+        // Initialize services
+        authService := auth.NewAuthService(store)
+        plantService := services.NewPlantService(store)
+
+        // Initialize handlers
+        authHandlers := handlers.NewAuthHandlers(authService)
+        plantHandlers := handlers.NewPlantHandlers(plantService, authService)
+        adminHandlers := handlers.NewAdminHandler(store)
+
+        // Parse templates
+        templates, err := template.ParseGlob(filepath.Join("web", "templates", "*.html"))
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Warning: Could not parse templates: %v", err)
+                templates = template.New("empty")
+        }</span>
+
+        // Create router
+        <span class="cov0" title="0">r := chi.NewRouter()
+
+        // Add middleware
+        r.Use(middleware.Logger)
+        r.Use(middleware.Recoverer)
+        r.Use(middleware.RealIP)
+        r.Use(middleware.RequestID)
+
+        // Health check endpoint
+        r.Get("/health", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                w.Header().Set("Content-Type", "application/json")
+                w.WriteHeader(http.StatusOK)
+                w.Write([]byte(`{"status":"ok","service":"watered"}`))
+        }</span>)
+
+        // Authentication routes
+        <span class="cov0" title="0">r.Route("/auth", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Get("/login", authHandlers.LoginHandler)
+                r.Get("/callback", authHandlers.CallbackHandler)
+                r.Post("/logout", authHandlers.LogoutHandler)
+                r.Get("/status", authHandlers.StatusHandler)
+                // Demo routes (only available in demo mode)
+                r.HandleFunc("/demo-login", authHandlers.DemoLoginHandler)
+        }</span>)
+
+        // API routes
+        <span class="cov0" title="0">r.Route("/api", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Get("/status", handlers.GetStatus)
+
+                // Plant API routes
+                r.Route("/plant", func(r chi.Router) </span><span class="cov0" title="0">{
+                        // Public plant endpoints (read-only)
+                        r.Get("/", plantHandlers.GetPlantHandler)
+                        r.Get("/status", plantHandlers.GetPlantStatusHandler)
+                        r.Get("/timer", plantHandlers.GetPlantTimerHandler)
+
+                        // Protected plant endpoints (require authentication)
+                        r.Group(func(r chi.Router) </span><span class="cov0" title="0">{
+                                r.Use(authService.AuthRequired)
+                                r.Post("/water", plantHandlers.WaterPlantHandler)
+                        }</span>)
+
+                        // Admin-only plant endpoints
+                        <span class="cov0" title="0">r.Group(func(r chi.Router) </span><span class="cov0" title="0">{
+                                r.Use(authService.AdminRequired)
+                                r.Put("/settings", plantHandlers.UpdatePlantSettingsHandler)
+                                r.Post("/reset", plantHandlers.ResetPlantHandler)
+                        }</span>)
+                })
+        })
+
+        // Admin API routes
+        <span class="cov0" title="0">r.Route("/admin", func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Use(authService.AdminRequired)
+
+                // Configuration endpoints
+                r.Get("/config", adminHandlers.GetConfigHandler)
+                r.Put("/config/timeout", adminHandlers.UpdateTimeoutHandler)
+
+                // User management endpoints
+                r.Get("/users", adminHandlers.GetUsersHandler)
+                r.Post("/users", adminHandlers.AddUserHandler)
+                r.Delete("/users/{email}", adminHandlers.RemoveUserHandler)
+
+                // History and statistics endpoints
+                r.Get("/history", adminHandlers.GetHistoryHandler)
+                r.Get("/stats", adminHandlers.GetStatsHandler)
+        }</span>)
+
+        // Static files
+        <span class="cov0" title="0">r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static/"))))
+
+        // Frontend routes
+        r.Get("/", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                // Check authentication and pass user data to template
+                user, _ := authService.GetCurrentUser(r)
+                templateData := map[string]interface{}{
+                        "User":          user,
+                        "Authenticated": user != nil,
+                }
+
+                if err := templates.ExecuteTemplate(w, "index.html", templateData); err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "Template error", http.StatusInternalServerError)
+                        log.Printf("Template error: %v", err)
+                }</span>
+        })
+
+        <span class="cov0" title="0">r.Get("/login", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                // Redirect if already authenticated
+                if authService.IsAuthenticated(r) </span><span class="cov0" title="0">{
+                        http.Redirect(w, r, "/", http.StatusSeeOther)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := templates.ExecuteTemplate(w, "login.html", nil); err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, "Template error", http.StatusInternalServerError)
+                        log.Printf("Template error: %v", err)
+                }</span>
+        })
+
+        // Protected routes
+        <span class="cov0" title="0">r.Group(func(r chi.Router) </span><span class="cov0" title="0">{
+                r.Use(authService.AdminRequired)
+                r.Get("/admin", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                        user, _ := authService.GetCurrentUser(r)
+                        templateData := map[string]interface{}{
+                                "User": user,
+                        }
+
+                        if err := templates.ExecuteTemplate(w, "admin.html", templateData); err != nil </span><span class="cov0" title="0">{
+                                http.Error(w, "Template error", http.StatusInternalServerError)
+                                log.Printf("Template error: %v", err)
+                        }</span>
+                })
+        })
+
+        // Get port from environment or use default
+        <span class="cov0" title="0">port := os.Getenv("PORT")
+        if port == "" </span><span class="cov0" title="0">{
+                port = "8080"
+        }</span>
+
+        // Create server
+        <span class="cov0" title="0">srv := &amp;http.Server{
+                Addr:         ":" + port,
+                Handler:      r,
+                ReadTimeout:  15 * time.Second,
+                WriteTimeout: 15 * time.Second,
+                IdleTimeout:  60 * time.Second,
+        }
+
+        // Start server in goroutine
+        go func() </span><span class="cov0" title="0">{
+                log.Printf("Starting server on port %s", port)
+                if err := srv.ListenAndServe(); err != nil &amp;&amp; err != http.ErrServerClosed </span><span class="cov0" title="0">{
+                        log.Fatalf("Server failed to start: %v", err)
+                }</span>
+        }()
+
+        // Wait for interrupt signal to gracefully shutdown
+        <span class="cov0" title="0">quit := make(chan os.Signal, 1)
+        signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+        &lt;-quit
+
+        log.Println("Shutting down server...")
+
+        // Graceful shutdown with timeout
+        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+        defer cancel()
+
+        if err := srv.Shutdown(ctx); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Server forced to shutdown: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Println("Server exited")</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package auth
+
+import (
+        "context"
+        "crypto/rand"
+        "encoding/base64"
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "os"
+        "strings"
+        "time"
+
+        "github.com/gorilla/sessions"
+        "golang.org/x/oauth2"
+        "golang.org/x/oauth2/google"
+
+        "watered/internal/models"
+        "watered/internal/storage"
+)
+
+// GoogleUserInfo represents user info from Google OAuth
+type GoogleUserInfo struct {
+        ID            string `json:"id"`
+        Email         string `json:"email"`
+        VerifiedEmail bool   `json:"verified_email"`
+        Name          string `json:"name"`
+        Picture       string `json:"picture"`
+}
+
+// AuthService handles authentication operations
+type AuthService struct {
+        oauth2Config  *oauth2.Config
+        store         *sessions.CookieStore
+        storage       storage.Storage
+        allowedEmails map[string]bool
+        adminEmails   map[string]bool
+}
+
+// NewAuthService creates a new authentication service
+func NewAuthService(storage storage.Storage) *AuthService <span class="cov8" title="1">{
+        // Get OAuth2 credentials from environment
+        clientID := os.Getenv("GOOGLE_CLIENT_ID")
+        clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+        sessionSecret := os.Getenv("SESSION_SECRET")
+
+        if clientID == "" || clientSecret == "" </span><span class="cov8" title="1">{
+                log.Printf("Warning: Google OAuth2 credentials not set. Demo mode enabled.")
+                log.Printf("Visit /auth/demo-login to test authentication without Google OAuth.")
+                clientID = "demo-client-id"
+                clientSecret = "demo-client-secret"
+        }</span>
+
+        <span class="cov8" title="1">if sessionSecret == "" </span><span class="cov8" title="1">{
+                sessionSecret = "development-secret-change-in-production"
+                log.Printf("Warning: SESSION_SECRET not set. Using development secret.")
+        }</span>
+
+        // Create OAuth2 config
+        <span class="cov8" title="1">oauth2Config := &amp;oauth2.Config{
+                ClientID:     clientID,
+                ClientSecret: clientSecret,
+                RedirectURL:  "http://localhost:8080/auth/callback",
+                Scopes: []string{
+                        "https://www.googleapis.com/auth/userinfo.email",
+                        "https://www.googleapis.com/auth/userinfo.profile",
+                },
+                Endpoint: google.Endpoint,
+        }
+
+        // Create secure cookie store
+        store := sessions.NewCookieStore([]byte(sessionSecret))
+        store.Options = &amp;sessions.Options{
+                Path:     "/",
+                MaxAge:   24 * 60 * 60, // 24 hours
+                HttpOnly: true,
+                Secure:   false, // Set to true in production with HTTPS
+                SameSite: http.SameSiteLaxMode,
+        }
+
+        // Parse allowed emails
+        allowedEmails := make(map[string]bool)
+        adminEmails := make(map[string]bool)
+
+        if allowedEmailsStr := os.Getenv("ALLOWED_EMAILS"); allowedEmailsStr != "" </span><span class="cov8" title="1">{
+                for _, email := range strings.Split(allowedEmailsStr, ",") </span><span class="cov8" title="1">{
+                        allowedEmails[strings.TrimSpace(email)] = true
+                }</span>
+        } else<span class="cov8" title="1"> {
+                // Demo allowed emails
+                allowedEmails["demo@example.com"] = true
+                allowedEmails["user1@example.com"] = true
+                allowedEmails["user2@example.com"] = true
+                allowedEmails["test@example.com"] = true
+        }</span>
+
+        <span class="cov8" title="1">if adminEmailsStr := os.Getenv("ADMIN_EMAILS"); adminEmailsStr != "" </span><span class="cov8" title="1">{
+                for _, email := range strings.Split(adminEmailsStr, ",") </span><span class="cov8" title="1">{
+                        email = strings.TrimSpace(email)
+                        adminEmails[email] = true
+                        allowedEmails[email] = true // Admins are also allowed users
+                }</span>
+        } else<span class="cov8" title="1"> {
+                // Demo admin email
+                adminEmails["admin@example.com"] = true
+                allowedEmails["admin@example.com"] = true
+        }</span>
+
+        <span class="cov8" title="1">return &amp;AuthService{
+                oauth2Config:  oauth2Config,
+                store:         store,
+                storage:       storage,
+                allowedEmails: allowedEmails,
+                adminEmails:   adminEmails,
+        }</span>
+}
+
+// GenerateStateToken creates a random state token for OAuth2 CSRF protection
+func (a *AuthService) GenerateStateToken() (string, error) <span class="cov8" title="1">{
+        b := make([]byte, 32)
+        _, err := rand.Read(b)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">return base64.URLEncoding.EncodeToString(b), nil</span>
+}
+
+// GetLoginURL returns the Google OAuth2 login URL
+func (a *AuthService) GetLoginURL(state string) string <span class="cov8" title="1">{
+        return a.oauth2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
+}</span>
+
+// HandleCallback processes the OAuth2 callback
+func (a *AuthService) HandleCallback(ctx context.Context, code string) (*GoogleUserInfo, error) <span class="cov0" title="0">{
+        token, err := a.oauth2Config.Exchange(ctx, code)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to exchange code for token: %w", err)
+        }</span>
+
+        // Get user info from Google
+        <span class="cov0" title="0">client := a.oauth2Config.Client(ctx, token)
+        resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get user info: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        var userInfo GoogleUserInfo
+        if err := json.NewDecoder(resp.Body).Decode(&amp;userInfo); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to decode user info: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return &amp;userInfo, nil</span>
+}
+
+// IsUserAllowed checks if a user email is in the whitelist
+func (a *AuthService) IsUserAllowed(email string) bool <span class="cov8" title="1">{
+        return a.allowedEmails[email]
+}</span>
+
+// IsUserAdmin checks if a user email is in the admin list
+func (a *AuthService) IsUserAdmin(email string) bool <span class="cov8" title="1">{
+        return a.adminEmails[email]
+}</span>
+
+// CreateSession creates a new user session
+func (a *AuthService) CreateSession(w http.ResponseWriter, r *http.Request, userInfo *GoogleUserInfo) error <span class="cov8" title="1">{
+        session, err := a.store.Get(r, "watered-session")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get session: %w", err)
+        }</span>
+
+        // Store user info in session
+        <span class="cov8" title="1">session.Values["user_id"] = userInfo.ID
+        session.Values["user_email"] = userInfo.Email
+        session.Values["user_name"] = userInfo.Name
+        session.Values["user_picture"] = userInfo.Picture
+        session.Values["is_admin"] = a.IsUserAdmin(userInfo.Email)
+        session.Values["authenticated"] = true
+        session.Values["login_time"] = time.Now().Unix()
+
+        // Save session
+        if err := session.Save(r, w); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to save session: %w", err)
+        }</span>
+
+        // Create or update user in storage
+        <span class="cov8" title="1">user := &amp;models.User{
+                Email:    userInfo.Email,
+                Name:     userInfo.Name,
+                IsAdmin:  a.IsUserAdmin(userInfo.Email),
+                JoinedAt: time.Now(),
+        }
+
+        if existingUser, err := a.storage.GetUser(userInfo.Email); err == nil &amp;&amp; existingUser != nil </span><span class="cov0" title="0">{
+                // Update existing user
+                user.JoinedAt = existingUser.JoinedAt
+        }</span>
+
+        <span class="cov8" title="1">if err := a.storage.CreateUser(user); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Warning: Failed to store user in database: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// GetCurrentUser returns the current authenticated user
+func (a *AuthService) GetCurrentUser(r *http.Request) (*models.User, error) <span class="cov8" title="1">{
+        session, err := a.store.Get(r, "watered-session")
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get session: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">authenticated, ok := session.Values["authenticated"].(bool)
+        if !ok || !authenticated </span><span class="cov8" title="1">{
+                return nil, nil
+        }</span>
+
+        <span class="cov8" title="1">email, ok := session.Values["user_email"].(string)
+        if !ok </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("no email in session")
+        }</span>
+
+        <span class="cov8" title="1">name, _ := session.Values["user_name"].(string)
+        isAdmin, _ := session.Values["is_admin"].(bool)
+
+        return &amp;models.User{
+                Email:   email,
+                Name:    name,
+                IsAdmin: isAdmin,
+        }, nil</span>
+}
+
+// IsAuthenticated checks if the current request is authenticated
+func (a *AuthService) IsAuthenticated(r *http.Request) bool <span class="cov8" title="1">{
+        user, err := a.GetCurrentUser(r)
+        return err == nil &amp;&amp; user != nil
+}</span>
+
+// GetSession returns the current session
+func (a *AuthService) GetSession(r *http.Request) (*sessions.Session, error) <span class="cov0" title="0">{
+        return a.store.Get(r, "watered-session")
+}</span>
+
+// ClearSession logs out the user by clearing their session
+func (a *AuthService) ClearSession(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
+        session, err := a.store.Get(r, "watered-session")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to get session: %w", err)
+        }</span>
+
+        // Clear session values
+        <span class="cov8" title="1">session.Values = make(map[interface{}]interface{})
+        session.Options.MaxAge = -1
+
+        return session.Save(r, w)</span>
+}
+
+// AuthRequired middleware that requires authentication
+func (a *AuthService) AuthRequired(next http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                if !a.IsAuthenticated(r) </span><span class="cov8" title="1">{
+                        http.Redirect(w, r, "/login", http.StatusSeeOther)
+                        return
+                }</span>
+                <span class="cov0" title="0">next.ServeHTTP(w, r)</span>
+        })
+}
+
+// AdminRequired middleware that requires admin privileges
+func (a *AuthService) AdminRequired(next http.Handler) http.Handler <span class="cov8" title="1">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                user, err := a.GetCurrentUser(r)
+                if err != nil || user == nil || !user.IsAdmin </span><span class="cov8" title="1">{
+                        http.Error(w, "Admin access required", http.StatusForbidden)
+                        return
+                }</span>
+                <span class="cov0" title="0">next.ServeHTTP(w, r)</span>
+        })
+}
+
+// SetAllowedEmails sets the allowed emails (for testing)
+func (a *AuthService) SetAllowedEmails(emails map[string]bool) <span class="cov0" title="0">{
+        a.allowedEmails = emails
+}</span>
+
+// IsDemoMode checks if we're running in demo mode (no real Google credentials)
+func (a *AuthService) IsDemoMode() bool <span class="cov8" title="1">{
+        return a.oauth2Config.ClientID == "demo-client-id"
+}</span>
+
+// CreateDemoSession creates a demo session for testing (bypasses Google OAuth)
+func (a *AuthService) CreateDemoSession(w http.ResponseWriter, r *http.Request, email string, name string, isAdmin bool) error <span class="cov8" title="1">{
+        if !a.IsDemoMode() </span><span class="cov0" title="0">{
+                return fmt.Errorf("demo sessions only available in demo mode")
+        }</span>
+
+        // Check if user is allowed
+        <span class="cov8" title="1">if !a.IsUserAllowed(email) </span><span class="cov8" title="1">{
+                return fmt.Errorf("user not in allowlist")
+        }</span>
+
+        // Create demo user info
+        <span class="cov8" title="1">userInfo := &amp;GoogleUserInfo{
+                ID:            "demo-" + email,
+                Email:         email,
+                VerifiedEmail: true,
+                Name:          name,
+                Picture:       "https://via.placeholder.com/150?text=" + name[0:1],
+        }
+
+        return a.CreateSession(w, r, userInfo)</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "strings"
+
+        "watered/internal/models"
+        "watered/internal/storage"
+
+        "github.com/go-chi/chi/v5"
+)
+
+// AdminHandler handles admin-related HTTP requests
+type AdminHandler struct {
+        storage storage.Storage
+}
+
+// NewAdminHandler creates a new admin handler
+func NewAdminHandler(storage storage.Storage) *AdminHandler <span class="cov8" title="1">{
+        return &amp;AdminHandler{
+                storage: storage,
+        }
+}</span>
+
+// GetConfigHandler returns the current admin configuration
+func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        config, err := h.storage.GetAdminConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get admin config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        // If no config exists, create default
+        <span class="cov8" title="1">if config == nil </span><span class="cov8" title="1">{
+                config = &amp;models.AdminConfig{
+                        TimeoutHours:  24,
+                        AllowedEmails: []string{"admin@example.com"},
+                        AdminEmails:   []string{"admin@example.com"},
+                }
+                if err := h.storage.UpdateAdminConfig(config); err != nil </span><span class="cov0" title="0">{
+                        http.Error(w, fmt.Sprintf("Failed to create default config: %v", err), http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        if err := json.NewEncoder(w).Encode(config); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to encode config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+}
+
+// UpdateTimeoutHandler updates the watering timeout configuration
+func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var request struct {
+                TimeoutHours int `json:"timeoutHours"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;request); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Validate timeout range
+        <span class="cov8" title="1">if request.TimeoutHours &lt; 1 || request.TimeoutHours &gt; 168 </span><span class="cov8" title="1">{
+                http.Error(w, "Timeout must be between 1 and 168 hours", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Get current config
+        <span class="cov8" title="1">config, err := h.storage.GetAdminConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get admin config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if config == nil </span><span class="cov8" title="1">{
+                config = &amp;models.AdminConfig{
+                        TimeoutHours:  request.TimeoutHours,
+                        AllowedEmails: []string{"admin@example.com"},
+                        AdminEmails:   []string{"admin@example.com"},
+                }
+        }</span> else<span class="cov8" title="1"> {
+                config.TimeoutHours = request.TimeoutHours
+        }</span>
+
+        // Update config
+        <span class="cov8" title="1">if err := h.storage.UpdateAdminConfig(config); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to update config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Return success response
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "success":      true,
+                "timeoutHours": request.TimeoutHours,
+                "message":      fmt.Sprintf("Timeout updated to %d hours", request.TimeoutHours),
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// GetUsersHandler returns the list of whitelisted users
+func (h *AdminHandler) GetUsersHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        config, err := h.storage.GetAdminConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get admin config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if config == nil </span><span class="cov8" title="1">{
+                config = &amp;models.AdminConfig{
+                        TimeoutHours:  24,
+                        AllowedEmails: []string{"admin@example.com"},
+                        AdminEmails:   []string{"admin@example.com"},
+                }
+        }</span>
+
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "allowedEmails": config.AllowedEmails,
+                "adminEmails":   config.AdminEmails,
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// AddUserHandler adds a user to the whitelist
+func (h *AdminHandler) AddUserHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var request struct {
+                Email string `json:"email"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;request); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Invalid JSON", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">email := strings.TrimSpace(strings.ToLower(request.Email))
+        if email == "" </span><span class="cov8" title="1">{
+                http.Error(w, "Email is required", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Basic email validation
+        <span class="cov8" title="1">if !strings.Contains(email, "@") || !strings.Contains(email, ".") </span><span class="cov8" title="1">{
+                http.Error(w, "Invalid email format", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Get current config
+        <span class="cov8" title="1">config, err := h.storage.GetAdminConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get admin config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if config == nil </span><span class="cov8" title="1">{
+                config = &amp;models.AdminConfig{
+                        TimeoutHours:  24,
+                        AllowedEmails: []string{},
+                        AdminEmails:   []string{"admin@example.com"},
+                }
+        }</span>
+
+        // Check if email already exists
+        <span class="cov8" title="1">for _, existingEmail := range config.AllowedEmails </span><span class="cov8" title="1">{
+                if existingEmail == email </span><span class="cov8" title="1">{
+                        http.Error(w, "Email already exists in whitelist", http.StatusConflict)
+                        return
+                }</span>
+        }
+
+        // Add email to allowed list
+        <span class="cov8" title="1">config.AllowedEmails = append(config.AllowedEmails, email)
+
+        // Update config
+        if err := h.storage.UpdateAdminConfig(config); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to update config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Return success response
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "success": true,
+                "message": fmt.Sprintf("Added %s to allowed users", email),
+                "email":   email,
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusCreated)
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// RemoveUserHandler removes a user from the whitelist
+func (h *AdminHandler) RemoveUserHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        email := chi.URLParam(r, "email")
+        if email == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Email parameter is required", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">email = strings.TrimSpace(strings.ToLower(email))
+
+        // Get current config
+        config, err := h.storage.GetAdminConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get admin config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if config == nil </span><span class="cov8" title="1">{
+                http.Error(w, "No configuration found", http.StatusNotFound)
+                return
+        }</span>
+
+        // Check if email exists and remove it
+        <span class="cov8" title="1">found := false
+        newAllowedEmails := make([]string, 0, len(config.AllowedEmails))
+        for _, existingEmail := range config.AllowedEmails </span><span class="cov8" title="1">{
+                if existingEmail != email </span><span class="cov8" title="1">{
+                        newAllowedEmails = append(newAllowedEmails, existingEmail)
+                }</span> else<span class="cov8" title="1"> {
+                        found = true
+                }</span>
+        }
+
+        <span class="cov8" title="1">if !found </span><span class="cov8" title="1">{
+                http.Error(w, "Email not found in whitelist", http.StatusNotFound)
+                return
+        }</span>
+
+        <span class="cov8" title="1">config.AllowedEmails = newAllowedEmails
+
+        // Update config
+        if err := h.storage.UpdateAdminConfig(config); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to update config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Return success response
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "success": true,
+                "message": fmt.Sprintf("Removed %s from allowed users", email),
+                "email":   email,
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// GetHistoryHandler returns plant watering history
+func (h *AdminHandler) GetHistoryHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        // Get current plant state
+        plant, err := h.storage.GetPlantState()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get plant state: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        // For now, return current state as history
+        // In a real implementation, this would return historical watering events
+        <span class="cov0" title="0">history := map[string]interface{}{
+                "currentState": plant,
+                "events":       []interface{}{}, // TODO: Implement watering history storage
+                "message":      "Plant history feature will be enhanced in future versions",
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(history)</span>
+}
+
+// GetStatsHandler returns usage statistics
+func (h *AdminHandler) GetStatsHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        config, err := h.storage.GetAdminConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get admin config: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">plant, err := h.storage.GetPlantState()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf("Failed to get plant state: %v", err), http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">stats := map[string]interface{}{
+                "totalUsers":   len(config.AllowedEmails),
+                "adminUsers":   len(config.AdminEmails),
+                "timeoutHours": config.TimeoutHours,
+                "plantWatered": plant != nil &amp;&amp; plant.LastWatered != nil,
+                "systemStatus": "healthy",
+        }
+
+        if plant != nil &amp;&amp; plant.LastWatered != nil </span><span class="cov0" title="0">{
+                stats["lastWatered"] = plant.LastWatered.Format("2006-01-02 15:04:05")
+                stats["wateredBy"] = plant.WateredBy
+        }</span>
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(stats)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "log"
+        "net/http"
+
+        "watered/internal/auth"
+)
+
+// AuthHandlers contains all authentication-related HTTP handlers
+type AuthHandlers struct {
+        authService *auth.AuthService
+}
+
+// NewAuthHandlers creates a new auth handlers instance
+func NewAuthHandlers(authService *auth.AuthService) *AuthHandlers <span class="cov8" title="1">{
+        return &amp;AuthHandlers{
+                authService: authService,
+        }
+}</span>
+
+// LoginHandler redirects users to Google OAuth2
+func (h *AuthHandlers) LoginHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        // Generate state token for CSRF protection
+        state, err := h.authService.GenerateStateToken()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to generate state token: %v", err)
+                http.Error(w, "Failed to initiate login", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Store state in session for validation
+        <span class="cov8" title="1">session, err := h.authService.GetSession(r)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to get session: %v", err)
+                http.Error(w, "Session error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">session.Values["oauth_state"] = state
+        if err := session.Save(r, w); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to save session: %v", err)
+                http.Error(w, "Session error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Redirect to Google OAuth2
+        <span class="cov8" title="1">url := h.authService.GetLoginURL(state)
+        http.Redirect(w, r, url, http.StatusTemporaryRedirect)</span>
+}
+
+// CallbackHandler handles OAuth2 callback from Google
+func (h *AuthHandlers) CallbackHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        // Get the authorization code
+        code := r.FormValue("code")
+        if code == "" </span><span class="cov0" title="0">{
+                http.Error(w, "Authorization code not found", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Validate state parameter
+        <span class="cov0" title="0">state := r.FormValue("state")
+        session, err := h.authService.GetSession(r)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to get session: %v", err)
+                http.Error(w, "Session error", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov0" title="0">expectedState, ok := session.Values["oauth_state"].(string)
+        if !ok || state != expectedState </span><span class="cov0" title="0">{
+                log.Printf("Invalid state parameter: expected %s, got %s", expectedState, state)
+                http.Error(w, "Invalid state parameter", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Exchange code for token and get user info
+        <span class="cov0" title="0">userInfo, err := h.authService.HandleCallback(r.Context(), code)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("OAuth callback failed: %v", err)
+                http.Error(w, "Authentication failed", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Check if user is allowed
+        <span class="cov0" title="0">if !h.authService.IsUserAllowed(userInfo.Email) </span><span class="cov0" title="0">{
+                log.Printf("User %s not in allowlist", userInfo.Email)
+                http.Error(w, "Access denied: User not authorized", http.StatusForbidden)
+                return
+        }</span>
+
+        // Create session for user
+        <span class="cov0" title="0">if err := h.authService.CreateSession(w, r, userInfo); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to create session: %v", err)
+                http.Error(w, "Failed to create session", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("User %s (%s) logged in successfully", userInfo.Name, userInfo.Email)
+
+        // Redirect to home page
+        http.Redirect(w, r, "/", http.StatusSeeOther)</span>
+}
+
+// LogoutHandler clears the user session
+func (h *AuthHandlers) LogoutHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        // Get current user for logging
+        user, _ := h.authService.GetCurrentUser(r)
+
+        // Clear session
+        if err := h.authService.ClearSession(w, r); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to clear session: %v", err)
+                http.Error(w, "Logout failed", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if user != nil </span><span class="cov8" title="1">{
+                log.Printf("User %s logged out", user.Email)
+        }</span>
+
+        // Redirect to login page
+        <span class="cov8" title="1">http.Redirect(w, r, "/login", http.StatusSeeOther)</span>
+}
+
+// DemoLoginHandler provides demo authentication for testing (only in demo mode)
+func (h *AuthHandlers) DemoLoginHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if !h.authService.IsDemoMode() </span><span class="cov0" title="0">{
+                http.Error(w, "Demo login only available in demo mode", http.StatusNotFound)
+                return
+        }</span>
+
+        // Handle GET for simple demo login (auto-login test user)
+        <span class="cov0" title="0">if r.Method == "GET" </span><span class="cov0" title="0">{
+                // Check if user is requesting a simple login
+                if r.URL.Query().Get("simple") == "true" </span><span class="cov0" title="0">{
+                        // Create demo session with default test user
+                        if err := h.authService.CreateDemoSession(w, r, "test@example.com", "Demo User", false); err != nil </span><span class="cov0" title="0">{
+                                log.Printf("Failed to create demo session: %v", err)
+                                http.Error(w, "Failed to create demo session: "+err.Error(), http.StatusBadRequest)
+                                return
+                        }</span>
+
+                        <span class="cov0" title="0">log.Printf("Demo user %s (%s) logged in successfully", "Demo User", "test@example.com")
+
+                        // Return JSON response for API users
+                        if r.Header.Get("Accept") == "application/json" </span><span class="cov0" title="0">{
+                                w.Header().Set("Content-Type", "application/json")
+                                w.Write([]byte(`{"success": true, "message": "Demo login successful", "user": {"email": "test@example.com", "name": "Demo User"}}`))
+                                return
+                        }</span>
+
+                        <span class="cov0" title="0">http.Redirect(w, r, "/", http.StatusSeeOther)
+                        return</span>
+                }
+        }
+
+        // Handle POST for demo login
+        <span class="cov0" title="0">if r.Method == "POST" </span><span class="cov0" title="0">{
+                email := r.FormValue("email")
+                name := r.FormValue("name")
+                isAdmin := r.FormValue("admin") == "true"
+
+                if email == "" </span><span class="cov0" title="0">{
+                        http.Error(w, "Email is required", http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if name == "" </span><span class="cov0" title="0">{
+                        name = "Demo User"
+                }</span>
+
+                // Create demo session
+                <span class="cov0" title="0">if err := h.authService.CreateDemoSession(w, r, email, name, isAdmin); err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Failed to create demo session: %v", err)
+                        http.Error(w, "Failed to create demo session: "+err.Error(), http.StatusBadRequest)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">log.Printf("Demo user %s (%s) logged in successfully", name, email)
+                http.Redirect(w, r, "/", http.StatusSeeOther)
+                return</span>
+        }
+
+        // Show demo login form
+        <span class="cov0" title="0">html := `&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Demo Login - Watered&lt;/title&gt;
+    &lt;link rel="icon" type="image/svg+xml" href="/static/favicon.svg"&gt;
+    &lt;link rel="stylesheet" href="/static/styles.css"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header class="header"&gt;
+        &lt;div class="header-content"&gt;
+            &lt;a href="/" class="logo"&gt;🌱 Watered&lt;/a&gt;
+            &lt;nav&gt;
+                &lt;ul class="nav-links"&gt;
+                    &lt;li&gt;&lt;a href="/"&gt;Home&lt;/a&gt;&lt;/li&gt;
+                    &lt;li&gt;&lt;a href="/login"&gt;Login&lt;/a&gt;&lt;/li&gt;
+                &lt;/ul&gt;
+            &lt;/nav&gt;
+        &lt;/div&gt;
+    &lt;/header&gt;
+
+    &lt;div class="container"&gt;
+        &lt;main class="login-container"&gt;
+            &lt;h1 class="login-title"&gt;🧪 Demo Login&lt;/h1&gt;
+            &lt;p style="text-align: center; margin-bottom: 2rem; color: var(--muted-text);"&gt;
+                Test authentication without Google OAuth
+            &lt;/p&gt;
+
+            &lt;form method="post" style="margin-bottom: 2rem;"&gt;
+                &lt;div class="form-group"&gt;
+                    &lt;label for="email"&gt;Email:&lt;/label&gt;
+                    &lt;select id="email" name="email" required&gt;
+                        &lt;option value=""&gt;Select a demo user...&lt;/option&gt;
+                        &lt;option value="demo@example.com"&gt;demo@example.com (Regular User)&lt;/option&gt;
+                        &lt;option value="user1@example.com"&gt;user1@example.com (Regular User)&lt;/option&gt;
+                        &lt;option value="user2@example.com"&gt;user2@example.com (Regular User)&lt;/option&gt;
+                        &lt;option value="admin@example.com"&gt;admin@example.com (Admin)&lt;/option&gt;
+                    &lt;/select&gt;
+                &lt;/div&gt;
+                
+                &lt;div class="form-group"&gt;
+                    &lt;label for="name"&gt;Display Name:&lt;/label&gt;
+                    &lt;input type="text" id="name" name="name" placeholder="Demo User" /&gt;
+                &lt;/div&gt;
+
+                &lt;div class="form-group"&gt;
+                    &lt;label&gt;
+                        &lt;input type="checkbox" name="admin" value="true" /&gt; 
+                        Login as Admin (only works for admin@example.com)
+                    &lt;/label&gt;
+                &lt;/div&gt;
+
+                &lt;button type="submit" class="btn" style="width: 100%;"&gt;🚀 Demo Login&lt;/button&gt;
+            &lt;/form&gt;
+
+            &lt;div style="background-color: var(--secondary-bg); padding: 1rem; border-radius: var(--border-radius); margin-top: 1rem;"&gt;
+                &lt;h4 style="margin: 0 0 0.5rem 0; color: var(--accent-color);"&gt;Demo Mode Instructions:&lt;/h4&gt;
+                &lt;ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem; color: var(--muted-text);"&gt;
+                    &lt;li&gt;Choose any of the pre-configured demo users&lt;/li&gt;
+                    &lt;li&gt;Only admin@example.com can access admin features&lt;/li&gt;
+                    &lt;li&gt;Sessions work exactly like real Google OAuth&lt;/li&gt;
+                    &lt;li&gt;You can logout and test different users&lt;/li&gt;
+                &lt;/ul&gt;
+            &lt;/div&gt;
+
+            &lt;div style="text-align: center; margin-top: 1rem;"&gt;
+                &lt;a href="/login" class="btn btn-secondary"&gt;← Back to Real Login&lt;/a&gt;
+            &lt;/div&gt;
+        &lt;/main&gt;
+    &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;`
+        w.Header().Set("Content-Type", "text/html")
+        w.Write([]byte(html))</span>
+}
+
+// StatusHandler returns the current authentication status
+func (h *AuthHandlers) StatusHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        type UserResponse struct {
+                Email   string `json:"email"`
+                Name    string `json:"name"`
+                IsAdmin bool   `json:"is_admin"`
+        }
+
+        type AuthStatus struct {
+                Authenticated bool          `json:"authenticated"`
+                User          *UserResponse `json:"user,omitempty"`
+        }
+
+        user, err := h.authService.GetCurrentUser(r)
+        status := AuthStatus{
+                Authenticated: err == nil &amp;&amp; user != nil,
+        }
+
+        if status.Authenticated </span><span class="cov8" title="1">{
+                status.User = &amp;UserResponse{
+                        Email:   user.Email,
+                        Name:    user.Name,
+                        IsAdmin: user.IsAdmin,
+                }
+        }</span>
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(status)</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "log"
+        "net/http"
+
+        "watered/internal/auth"
+        "watered/internal/services"
+)
+
+// PlantHandlers contains all plant-related HTTP handlers
+type PlantHandlers struct {
+        plantService *services.PlantService
+        authService  *auth.AuthService
+}
+
+// NewPlantHandlers creates a new plant handlers instance
+func NewPlantHandlers(plantService *services.PlantService, authService *auth.AuthService) *PlantHandlers <span class="cov8" title="1">{
+        return &amp;PlantHandlers{
+                plantService: plantService,
+                authService:  authService,
+        }
+}</span>
+
+// GetPlantHandler returns the current plant state
+// GET /api/plant
+func (h *PlantHandlers) GetPlantHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        plant, err := h.plantService.GetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to get plant: %v", err)
+                http.Error(w, "Failed to get plant state", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Create response with computed status
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "id":                   plant.ID,
+                "name":                 plant.Name,
+                "last_watered":         plant.LastWatered,
+                "timeout_hours":        plant.TimeoutHours,
+                "watered_by":           plant.WateredBy,
+                "created_at":           plant.CreatedAt,
+                "updated_at":           plant.UpdatedAt,
+                "health_status":        plant.GetHealthStatus(),
+                "time_since_watering":  plant.GetFormattedTimeSinceWatering(),
+                "hours_since_watering": plant.GetHoursSinceWatering(),
+                "is_overdue":           plant.IsOverdue(),
+                "time_until_due":       plant.GetTimeUntilDue(),
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// WaterPlantHandler records a plant watering event
+// POST /api/plant/water
+func (h *PlantHandlers) WaterPlantHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        // Get the current authenticated user
+        user, err := h.authService.GetCurrentUser(r)
+        if err != nil || user == nil </span><span class="cov8" title="1">{
+                http.Error(w, "Authentication required", http.StatusUnauthorized)
+                return
+        }</span>
+
+        // Water the plant
+        <span class="cov8" title="1">plant, err := h.plantService.WaterPlant(user.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to water plant: %v", err)
+                http.Error(w, "Failed to water plant", http.StatusInternalServerError)
+                return
+        }</span>
+
+        // Return updated plant state
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "success": true,
+                "message": "Plant watered successfully! 🌱",
+                "plant": map[string]interface{}{
+                        "id":                   plant.ID,
+                        "name":                 plant.Name,
+                        "last_watered":         plant.LastWatered,
+                        "timeout_hours":        plant.TimeoutHours,
+                        "watered_by":           plant.WateredBy,
+                        "updated_at":           plant.UpdatedAt,
+                        "health_status":        plant.GetHealthStatus(),
+                        "time_since_watering":  plant.GetFormattedTimeSinceWatering(),
+                        "hours_since_watering": plant.GetHoursSinceWatering(),
+                        "is_overdue":           plant.IsOverdue(),
+                },
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// GetPlantStatusHandler returns just the plant health status
+// GET /api/plant/status
+func (h *PlantHandlers) GetPlantStatusHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        status, err := h.plantService.GetPlantStatus()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to get plant status: %v", err)
+                http.Error(w, "Failed to get plant status", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(status)</span>
+}
+
+// GetPlantTimerHandler returns plant timer information
+// GET /api/plant/timer
+func (h *PlantHandlers) GetPlantTimerHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        timer, err := h.plantService.GetPlantTimer()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to get plant timer: %v", err)
+                http.Error(w, "Failed to get plant timer", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(timer)</span>
+}
+
+// UpdatePlantSettingsHandler updates plant configuration (admin only)
+// PUT /api/plant/settings
+func (h *PlantHandlers) UpdatePlantSettingsHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        // Parse request body
+        var req struct {
+                Name         string `json:"name"`
+                TimeoutHours int    `json:"timeout_hours"`
+        }
+
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Invalid request body", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Update plant settings
+        <span class="cov8" title="1">plant, err := h.plantService.UpdatePlantSettings(req.Name, req.TimeoutHours)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to update plant settings: %v", err)
+                http.Error(w, "Failed to update plant settings: "+err.Error(), http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "success": true,
+                "message": "Plant settings updated successfully",
+                "plant": map[string]interface{}{
+                        "id":                  plant.ID,
+                        "name":                plant.Name,
+                        "last_watered":        plant.LastWatered,
+                        "timeout_hours":       plant.TimeoutHours,
+                        "watered_by":          plant.WateredBy,
+                        "updated_at":          plant.UpdatedAt,
+                        "health_status":       plant.GetHealthStatus(),
+                        "time_since_watering": plant.GetFormattedTimeSinceWatering(),
+                },
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+
+// ResetPlantHandler resets the plant to unwatered state (admin only)
+// POST /api/plant/reset
+func (h *PlantHandlers) ResetPlantHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        plant, err := h.plantService.ResetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to reset plant: %v", err)
+                http.Error(w, "Failed to reset plant", http.StatusInternalServerError)
+                return
+        }</span>
+
+        <span class="cov8" title="1">response := map[string]interface{}{
+                "success": true,
+                "message": "Plant reset to unwatered state",
+                "plant": map[string]interface{}{
+                        "id":                  plant.ID,
+                        "name":                plant.Name,
+                        "last_watered":        plant.LastWatered,
+                        "timeout_hours":       plant.TimeoutHours,
+                        "watered_by":          plant.WateredBy,
+                        "updated_at":          plant.UpdatedAt,
+                        "health_status":       plant.GetHealthStatus(),
+                        "time_since_watering": plant.GetFormattedTimeSinceWatering(),
+                },
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "net/http"
+        "time"
+)
+
+// StatusResponse represents the API status response
+type StatusResponse struct {
+        Status    string    `json:"status"`
+        Service   string    `json:"service"`
+        Version   string    `json:"version"`
+        Timestamp time.Time `json:"timestamp"`
+}
+
+// GetStatus returns the current API status
+func GetStatus(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        response := StatusResponse{
+                Status:    "ok",
+                Service:   "watered-api",
+                Version:   "1.0.0",
+                Timestamp: time.Now(),
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+
+        if err := json.NewEncoder(w).Encode(response); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+                return
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package logger
+
+import (
+        "log"
+        "os"
+)
+
+// Logger provides structured logging for the application
+type Logger struct {
+        *log.Logger
+}
+
+// NewLogger creates a new logger instance
+func NewLogger() *Logger <span class="cov0" title="0">{
+        return &amp;Logger{
+                Logger: log.New(os.Stdout, "[WATERED] ", log.LstdFlags|log.Lshortfile),
+        }
+}</span>
+
+// Info logs informational messages
+func (l *Logger) Info(msg string) <span class="cov0" title="0">{
+        l.Printf("INFO: %s", msg)
+}</span>
+
+// Error logs error messages
+func (l *Logger) Error(msg string, err error) <span class="cov0" title="0">{
+        if err != nil </span><span class="cov0" title="0">{
+                l.Printf("ERROR: %s - %v", msg, err)
+        }</span> else<span class="cov0" title="0"> {
+                l.Printf("ERROR: %s", msg)
+        }</span>
+}
+
+// Debug logs debug messages
+func (l *Logger) Debug(msg string) <span class="cov0" title="0">{
+        l.Printf("DEBUG: %s", msg)
+}</span>
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package models
+
+import (
+        "fmt"
+        "time"
+)
+
+// PlantHealthStatus represents the health status of a plant
+type PlantHealthStatus string
+
+const (
+        HealthStatusHealthy    PlantHealthStatus = "healthy"
+        HealthStatusNeedsWater PlantHealthStatus = "needs_water"
+        HealthStatusCritical   PlantHealthStatus = "critical"
+        HealthStatusUnknown    PlantHealthStatus = "unknown"
+)
+
+// PlantState represents the current state of the plant
+type PlantState struct {
+        ID           int        `json:"id"`
+        Name         string     `json:"name"`
+        LastWatered  *time.Time `json:"last_watered"` // Pointer to handle null case
+        TimeoutHours int        `json:"timeout_hours"`
+        WateredBy    string     `json:"watered_by"`
+        CreatedAt    time.Time  `json:"created_at"`
+        UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+// PlantWateringEvent represents a single watering event
+type PlantWateringEvent struct {
+        ID        int       `json:"id"`
+        PlantID   int       `json:"plant_id"`
+        WateredAt time.Time `json:"watered_at"`
+        WateredBy string    `json:"watered_by"`
+}
+
+// GetHealthStatus calculates the current health status based on last watering time
+func (p *PlantState) GetHealthStatus() PlantHealthStatus <span class="cov8" title="1">{
+        if p.LastWatered == nil </span><span class="cov8" title="1">{
+                return HealthStatusCritical
+        }</span>
+
+        <span class="cov8" title="1">hoursSinceWatering := time.Since(*p.LastWatered).Hours()
+
+        // Healthy: less than 50% of timeout
+        if hoursSinceWatering &lt; float64(p.TimeoutHours)*0.5 </span><span class="cov8" title="1">{
+                return HealthStatusHealthy
+        }</span>
+
+        // Needs water: between 50% and 100% of timeout
+        <span class="cov8" title="1">if hoursSinceWatering &lt; float64(p.TimeoutHours) </span><span class="cov8" title="1">{
+                return HealthStatusNeedsWater
+        }</span>
+
+        // Critical: past timeout
+        <span class="cov8" title="1">return HealthStatusCritical</span>
+}
+
+// GetTimeSinceWatering returns the duration since last watering
+func (p *PlantState) GetTimeSinceWatering() *time.Duration <span class="cov8" title="1">{
+        if p.LastWatered == nil </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">duration := time.Since(*p.LastWatered)
+        return &amp;duration</span>
+}
+
+// GetHoursSinceWatering returns hours since last watering as a float
+func (p *PlantState) GetHoursSinceWatering() *float64 <span class="cov8" title="1">{
+        if p.LastWatered == nil </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">hours := time.Since(*p.LastWatered).Hours()
+        return &amp;hours</span>
+}
+
+// IsOverdue returns true if the plant is past its watering timeout
+func (p *PlantState) IsOverdue() bool <span class="cov8" title="1">{
+        if p.LastWatered == nil </span><span class="cov8" title="1">{
+                return true
+        }</span>
+
+        <span class="cov8" title="1">return time.Since(*p.LastWatered).Hours() &gt; float64(p.TimeoutHours)</span>
+}
+
+// GetTimeUntilDue returns duration until watering is due (negative if overdue)
+func (p *PlantState) GetTimeUntilDue() *time.Duration <span class="cov0" title="0">{
+        if p.LastWatered == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">nextWateringTime := p.LastWatered.Add(time.Duration(p.TimeoutHours) * time.Hour)
+        timeUntilDue := time.Until(nextWateringTime)
+        return &amp;timeUntilDue</span>
+}
+
+// GetFormattedTimeSinceWatering returns a human-readable string of time since watering
+func (p *PlantState) GetFormattedTimeSinceWatering() string <span class="cov8" title="1">{
+        if p.LastWatered == nil </span><span class="cov8" title="1">{
+                return "Never watered"
+        }</span>
+
+        <span class="cov8" title="1">duration := time.Since(*p.LastWatered)
+
+        if duration.Hours() &lt; 1 </span><span class="cov8" title="1">{
+                minutes := int(duration.Minutes())
+                if minutes == 1 </span><span class="cov8" title="1">{
+                        return "1 minute ago"
+                }</span>
+                <span class="cov8" title="1">return fmt.Sprintf("%d minutes ago", minutes)</span>
+        }
+
+        <span class="cov8" title="1">hours := int(duration.Hours())
+        if hours == 1 </span><span class="cov8" title="1">{
+                return "1 hour ago"
+        }</span>
+        <span class="cov8" title="1">if hours &lt; 24 </span><span class="cov8" title="1">{
+                return fmt.Sprintf("%d hours ago", hours)
+        }</span>
+
+        <span class="cov8" title="1">days := int(duration.Hours() / 24)
+        if days == 1 </span><span class="cov8" title="1">{
+                return "1 day ago"
+        }</span>
+        <span class="cov8" title="1">return fmt.Sprintf("%d days ago", days)</span>
+}
+
+// Validate checks if the plant state is valid
+func (p *PlantState) Validate() error <span class="cov8" title="1">{
+        if p.Name == "" </span><span class="cov8" title="1">{
+                return fmt.Errorf("plant name cannot be empty")
+        }</span>
+
+        <span class="cov8" title="1">if p.TimeoutHours &lt;= 0 </span><span class="cov8" title="1">{
+                return fmt.Errorf("timeout hours must be positive")
+        }</span>
+
+        <span class="cov8" title="1">if p.TimeoutHours &gt; 8760 </span><span class="cov8" title="1">{ // More than a year
+                return fmt.Errorf("timeout hours cannot exceed 8760 (1 year)")
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// User represents a user in the system
+type User struct {
+        Email    string    `json:"email"`
+        Name     string    `json:"name"`
+        IsAdmin  bool      `json:"is_admin"`
+        JoinedAt time.Time `json:"joined_at"`
+}
+
+// AdminConfig represents system configuration
+type AdminConfig struct {
+        TimeoutHours  int       `json:"timeout_hours"`
+        AllowedEmails []string  `json:"allowed_emails"`
+        AdminEmails   []string  `json:"admin_emails"`
+        LastModified  time.Time `json:"last_modified"`
+        ModifiedBy    string    `json:"modified_by"`
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package services
+
+import (
+        "fmt"
+        "log"
+        "time"
+
+        "watered/internal/models"
+        "watered/internal/storage"
+)
+
+// PlantService handles plant-related business logic
+type PlantService struct {
+        storage storage.Storage
+}
+
+// NewPlantService creates a new plant service
+func NewPlantService(storage storage.Storage) *PlantService <span class="cov8" title="1">{
+        return &amp;PlantService{
+                storage: storage,
+        }
+}</span>
+
+// GetPlant returns the current plant state, creating a default one if none exists
+func (s *PlantService) GetPlant() (*models.PlantState, error) <span class="cov8" title="1">{
+        plant, err := s.storage.GetPlantState()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get plant state: %w", err)
+        }</span>
+
+        // Create default plant if none exists
+        <span class="cov8" title="1">if plant == nil </span><span class="cov8" title="1">{
+                plant = s.createDefaultPlant()
+                if err := s.storage.UpdatePlantState(plant); err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Warning: failed to save default plant: %v", err)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return plant, nil</span>
+}
+
+// WaterPlant records a watering event for the plant
+func (s *PlantService) WaterPlant(wateredBy string) (*models.PlantState, error) <span class="cov8" title="1">{
+        if wateredBy == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("watered_by field is required")
+        }</span>
+
+        <span class="cov8" title="1">plant, err := s.GetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to get plant for watering: %w", err)
+        }</span>
+
+        // Update watering information
+        <span class="cov8" title="1">now := time.Now()
+        plant.LastWatered = &amp;now
+        plant.WateredBy = wateredBy
+        plant.UpdatedAt = now
+
+        // Save the updated plant state
+        if err := s.storage.UpdatePlantState(plant); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to save watered plant: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("Plant watered by %s at %s", wateredBy, now.Format(time.RFC3339))
+        return plant, nil</span>
+}
+
+// GetPlantStatus returns just the health status information
+func (s *PlantService) GetPlantStatus() (*PlantStatusResponse, error) <span class="cov8" title="1">{
+        plant, err := s.GetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;PlantStatusResponse{
+                Status:                     plant.GetHealthStatus(),
+                TimeSinceWateringFormatted: plant.GetFormattedTimeSinceWatering(),
+                HoursSinceWatering:         plant.GetHoursSinceWatering(),
+                IsOverdue:                  plant.IsOverdue(),
+                TimeUntilDue:               plant.GetTimeUntilDue(),
+        }, nil</span>
+}
+
+// GetPlantTimer returns timer-specific information
+func (s *PlantService) GetPlantTimer() (*PlantTimerResponse, error) <span class="cov8" title="1">{
+        plant, err := s.GetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">var nextWateringTime *time.Time
+        if plant.LastWatered != nil </span><span class="cov8" title="1">{
+                next := plant.LastWatered.Add(time.Duration(plant.TimeoutHours) * time.Hour)
+                nextWateringTime = &amp;next
+        }</span>
+
+        <span class="cov8" title="1">return &amp;PlantTimerResponse{
+                LastWatered:                plant.LastWatered,
+                TimeSinceWatering:          plant.GetTimeSinceWatering(),
+                TimeSinceWateringFormatted: plant.GetFormattedTimeSinceWatering(),
+                HoursSinceWatering:         plant.GetHoursSinceWatering(),
+                TimeoutHours:               plant.TimeoutHours,
+                NextWateringTime:           nextWateringTime,
+                TimeUntilDue:               plant.GetTimeUntilDue(),
+                IsOverdue:                  plant.IsOverdue(),
+        }, nil</span>
+}
+
+// UpdatePlantSettings updates plant configuration (timeout, name, etc.)
+func (s *PlantService) UpdatePlantSettings(name string, timeoutHours int) (*models.PlantState, error) <span class="cov8" title="1">{
+        plant, err := s.GetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Update settings
+        <span class="cov8" title="1">if name != "" </span><span class="cov8" title="1">{
+                plant.Name = name
+        }</span>
+
+        <span class="cov8" title="1">if timeoutHours != 0 </span><span class="cov8" title="1">{
+                if timeoutHours &lt; 0 </span><span class="cov8" title="1">{
+                        return nil, fmt.Errorf("timeout hours cannot be negative")
+                }</span>
+                <span class="cov8" title="1">plant.TimeoutHours = timeoutHours</span>
+        }
+
+        <span class="cov8" title="1">plant.UpdatedAt = time.Now()
+
+        // Validate the updated plant
+        if err := plant.Validate(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid plant settings: %w", err)
+        }</span>
+
+        // Save the updated plant
+        <span class="cov8" title="1">if err := s.storage.UpdatePlantState(plant); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to save plant settings: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("Plant settings updated: name=%s, timeout=%d hours", plant.Name, plant.TimeoutHours)
+        return plant, nil</span>
+}
+
+// ResetPlant resets the plant to unwatered state (admin function)
+func (s *PlantService) ResetPlant() (*models.PlantState, error) <span class="cov8" title="1">{
+        plant, err := s.GetPlant()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Reset watering state
+        <span class="cov8" title="1">plant.LastWatered = nil
+        plant.WateredBy = ""
+        plant.UpdatedAt = time.Now()
+
+        if err := s.storage.UpdatePlantState(plant); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to reset plant: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("Plant reset to unwatered state")
+        return plant, nil</span>
+}
+
+// createDefaultPlant creates a default plant configuration
+func (s *PlantService) createDefaultPlant() *models.PlantState <span class="cov8" title="1">{
+        now := time.Now()
+        return &amp;models.PlantState{
+                ID:           1,
+                Name:         "Our Plant",
+                LastWatered:  nil, // Never watered initially
+                TimeoutHours: 24,  // Default to 24 hours
+                WateredBy:    "",
+                CreatedAt:    now,
+                UpdatedAt:    now,
+        }
+}</span>
+
+// PlantStatusResponse represents the response for plant status endpoint
+type PlantStatusResponse struct {
+        Status                     models.PlantHealthStatus `json:"status"`
+        TimeSinceWateringFormatted string                   `json:"time_since_watering_formatted"`
+        HoursSinceWatering         *float64                 `json:"hours_since_watering"`
+        IsOverdue                  bool                     `json:"is_overdue"`
+        TimeUntilDue               *time.Duration           `json:"time_until_due"`
+}
+
+// PlantTimerResponse represents the response for plant timer endpoint
+type PlantTimerResponse struct {
+        LastWatered                *time.Time     `json:"last_watered"`
+        TimeSinceWatering          *time.Duration `json:"time_since_watering"`
+        TimeSinceWateringFormatted string         `json:"time_since_watering_formatted"`
+        HoursSinceWatering         *float64       `json:"hours_since_watering"`
+        TimeoutHours               int            `json:"timeout_hours"`
+        NextWateringTime           *time.Time     `json:"next_watering_time"`
+        TimeUntilDue               *time.Duration `json:"time_until_due"`
+        IsOverdue                  bool           `json:"is_overdue"`
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package storage
+
+import (
+        "watered/internal/models"
+)
+
+// Storage defines the interface for data persistence
+type Storage interface {
+        // Plant operations
+        GetPlantState() (*models.PlantState, error)
+        UpdatePlantState(state *models.PlantState) error
+
+        // User operations
+        GetUser(email string) (*models.User, error)
+        CreateUser(user *models.User) error
+
+        // Admin operations
+        GetAdminConfig() (*models.AdminConfig, error)
+        UpdateAdminConfig(config *models.AdminConfig) error
+
+        // Close the storage connection
+        Close() error
+}
+
+// MemoryStorage provides in-memory storage for development
+type MemoryStorage struct {
+        plant  *models.PlantState
+        users  map[string]*models.User
+        config *models.AdminConfig
+}
+
+// NewMemoryStorage creates a new in-memory storage instance
+func NewMemoryStorage() *MemoryStorage <span class="cov8" title="1">{
+        return &amp;MemoryStorage{
+                users: make(map[string]*models.User),
+        }
+}</span>
+
+// GetPlantState returns the current plant state
+func (m *MemoryStorage) GetPlantState() (*models.PlantState, error) <span class="cov8" title="1">{
+        return m.plant, nil
+}</span>
+
+// UpdatePlantState updates the plant state
+func (m *MemoryStorage) UpdatePlantState(state *models.PlantState) error <span class="cov8" title="1">{
+        m.plant = state
+        return nil
+}</span>
+
+// GetUser retrieves a user by email
+func (m *MemoryStorage) GetUser(email string) (*models.User, error) <span class="cov8" title="1">{
+        user, exists := m.users[email]
+        if !exists </span><span class="cov8" title="1">{
+                return nil, nil
+        }</span>
+        <span class="cov8" title="1">return user, nil</span>
+}
+
+// CreateUser creates a new user
+func (m *MemoryStorage) CreateUser(user *models.User) error <span class="cov8" title="1">{
+        m.users[user.Email] = user
+        return nil
+}</span>
+
+// GetAdminConfig returns the admin configuration
+func (m *MemoryStorage) GetAdminConfig() (*models.AdminConfig, error) <span class="cov8" title="1">{
+        return m.config, nil
+}</span>
+
+// UpdateAdminConfig updates the admin configuration
+func (m *MemoryStorage) UpdateAdminConfig(config *models.AdminConfig) error <span class="cov8" title="1">{
+        m.config = config
+        return nil
+}</span>
+
+// Close closes the storage connection (no-op for memory storage)
+func (m *MemoryStorage) Close() error <span class="cov8" title="1">{
+        return nil
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

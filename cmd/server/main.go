@@ -16,6 +16,7 @@ import (
 
 	"watered/internal/auth"
 	"watered/internal/handlers"
+	"watered/internal/monitoring"
 	"watered/internal/services"
 	"watered/internal/storage"
 )
@@ -34,6 +35,12 @@ func main() {
 	plantHandlers := handlers.NewPlantHandlers(plantService, authService)
 	adminHandlers := handlers.NewAdminHandler(store)
 
+	// Initialize health monitoring
+	healthMonitor := monitoring.NewHealthMonitor("1.0.0")
+	healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(store))
+	healthMonitor.RegisterChecker(monitoring.NewMemoryHealthChecker(512.0)) // 512MB limit
+	healthMonitor.RegisterChecker(monitoring.NewApplicationHealthChecker(store))
+
 	// Parse templates
 	templates, err := template.ParseGlob(filepath.Join("web", "templates", "*.html"))
 	if err != nil {
@@ -50,12 +57,15 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
 
-	// Health check endpoint
+	// Health check endpoints
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok","service":"watered"}`))
 	})
+	
+	// Comprehensive health monitoring endpoint
+	r.Get("/health/detailed", healthMonitor.HTTPHandler())
 
 	// Authentication routes
 	r.Route("/auth", func(r chi.Router) {
