@@ -9,7 +9,7 @@ import (
 func TestPlantState() *models.PlantState {
 	now := time.Now()
 	lastWatered := now.Add(-12 * time.Hour) // 12 hours ago
-	
+
 	return &models.PlantState{
 		ID:           1,
 		Name:         "Test Plant",
@@ -24,7 +24,7 @@ func TestPlantState() *models.PlantState {
 // TestPlantStateNeverWatered creates a test plant that has never been watered
 func TestPlantStateNeverWatered() *models.PlantState {
 	now := time.Now()
-	
+
 	return &models.PlantState{
 		ID:           2,
 		Name:         "Never Watered Plant",
@@ -40,7 +40,7 @@ func TestPlantStateNeverWatered() *models.PlantState {
 func TestPlantStateOverdue() *models.PlantState {
 	now := time.Now()
 	lastWatered := now.Add(-36 * time.Hour) // 36 hours ago, overdue for 24h timeout
-	
+
 	return &models.PlantState{
 		ID:           3,
 		Name:         "Overdue Plant",

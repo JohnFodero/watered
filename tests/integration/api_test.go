@@ -22,11 +22,11 @@ import (
 func CreateTestServer(t *testing.T) *httptest.Server {
 	// Initialize storage
 	store := storage.NewMemoryStorage()
-	
+
 	// Initialize services
 	authService := auth.NewAuthService(store)
 	plantService := services.NewPlantService(store)
-	
+
 	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(authService)
 	plantHandlers := handlers.NewPlantHandlers(plantService, authService)
@@ -52,20 +52,20 @@ func CreateTestServer(t *testing.T) *httptest.Server {
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/status", handlers.GetStatus)
-		
+
 		// Plant API routes
 		r.Route("/plant", func(r chi.Router) {
 			// Public plant endpoints (read-only)
 			r.Get("/", plantHandlers.GetPlantHandler)
 			r.Get("/status", plantHandlers.GetPlantStatusHandler)
 			r.Get("/timer", plantHandlers.GetPlantTimerHandler)
-			
+
 			// Protected plant endpoints (require authentication)
 			r.Group(func(r chi.Router) {
 				r.Use(authService.AuthRequired)
 				r.Post("/water", plantHandlers.WaterPlantHandler)
 			})
-			
+
 			// Admin-only plant endpoints
 			r.Group(func(r chi.Router) {
 				r.Use(authService.AdminRequired)
@@ -78,16 +78,16 @@ func CreateTestServer(t *testing.T) *httptest.Server {
 	// Admin API routes
 	r.Route("/admin", func(r chi.Router) {
 		r.Use(authService.AdminRequired)
-		
+
 		// Configuration endpoints
 		r.Get("/config", adminHandlers.GetConfigHandler)
 		r.Put("/config/timeout", adminHandlers.UpdateTimeoutHandler)
-		
+
 		// User management endpoints
 		r.Get("/users", adminHandlers.GetUsersHandler)
 		r.Post("/users", adminHandlers.AddUserHandler)
 		r.Delete("/users/{email}", adminHandlers.RemoveUserHandler)
-		
+
 		// History and statistics endpoints
 		r.Get("/history", adminHandlers.GetHistoryHandler)
 		r.Get("/stats", adminHandlers.GetStatsHandler)
@@ -236,7 +236,7 @@ func TestAdminConfigEndpoint(t *testing.T) {
 	// This test requires admin authentication
 	// For integration testing, we'd need to simulate the admin session
 	// For now, we test the unauthorized access (covered above)
-	
+
 	// TODO: Add authenticated admin tests when session testing is implemented
 }
 
@@ -266,10 +266,10 @@ func TestRateLimiting(t *testing.T) {
 		resp, err := http.Get(server.URL + "/health")
 		require.NoError(t, err)
 		resp.Body.Close()
-		
+
 		// Should not error out with basic load
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		
+
 		// Small delay to avoid overwhelming the test server
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -281,8 +281,8 @@ func TestInvalidJSONHandling(t *testing.T) {
 
 	// Test endpoints that expect JSON with invalid JSON
 	invalidJSON := `{"invalid": json}`
-	
-	resp, err := http.Post(server.URL+"/admin/users", "application/json", 
+
+	resp, err := http.Post(server.URL+"/admin/users", "application/json",
 		bytes.NewBufferString(invalidJSON))
 	require.NoError(t, err)
 	defer resp.Body.Close()

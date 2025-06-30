@@ -63,7 +63,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ok","service":"watered"}`))
 	})
-	
+
 	// Comprehensive health monitoring endpoint
 	r.Get("/health/detailed", healthMonitor.HTTPHandler())
 

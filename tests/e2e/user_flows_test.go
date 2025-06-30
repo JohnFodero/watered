@@ -29,11 +29,11 @@ type TestApp struct {
 func NewTestApp(t *testing.T) *TestApp {
 	// Initialize storage
 	store := storage.NewMemoryStorage()
-	
+
 	// Initialize services
 	authService := auth.NewAuthService(store)
 	plantService := services.NewPlantService(store)
-	
+
 	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(authService)
 	plantHandlers := handlers.NewPlantHandlers(plantService, authService)
@@ -59,20 +59,20 @@ func NewTestApp(t *testing.T) *TestApp {
 	// API routes
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/status", handlers.GetStatus)
-		
+
 		// Plant API routes
 		r.Route("/plant", func(r chi.Router) {
 			// Public plant endpoints
 			r.Get("/", plantHandlers.GetPlantHandler)
 			r.Get("/status", plantHandlers.GetPlantStatusHandler)
 			r.Get("/timer", plantHandlers.GetPlantTimerHandler)
-			
+
 			// Protected plant endpoints
 			r.Group(func(r chi.Router) {
 				r.Use(authService.AuthRequired)
 				r.Post("/water", plantHandlers.WaterPlantHandler)
 			})
-			
+
 			// Admin-only plant endpoints
 			r.Group(func(r chi.Router) {
 				r.Use(authService.AdminRequired)
@@ -178,7 +178,7 @@ func TestAdminWorkflow(t *testing.T) {
 	t.Run("admin_user_management_unauthorized", func(t *testing.T) {
 		// Try to add user without auth
 		userJSON := `{"email": "test@example.com"}`
-		resp, err := http.Post(app.Server.URL+"/admin/users", "application/json", 
+		resp, err := http.Post(app.Server.URL+"/admin/users", "application/json",
 			strings.NewReader(userJSON))
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -239,7 +239,7 @@ func TestErrorHandling(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 
 	// Test invalid JSON handling
-	resp, err = http.Post(app.Server.URL+"/admin/users", "application/json", 
+	resp, err = http.Post(app.Server.URL+"/admin/users", "application/json",
 		strings.NewReader(`{invalid json}`))
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -294,7 +294,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	// Basic security checks - more comprehensive headers would be added by middleware
 	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
-	
+
 	// TODO: Add tests for security headers when security middleware is implemented
 	// Examples: X-Frame-Options, X-Content-Type-Options, etc.
 }

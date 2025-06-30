@@ -33,42 +33,42 @@ type ComponentHealth struct {
 
 // HealthReport represents the overall health report
 type HealthReport struct {
-	Status     HealthStatus                 `json:"status"`
-	Timestamp  time.Time                    `json:"timestamp"`
-	Version    string                       `json:"version"`
-	Uptime     time.Duration                `json:"uptime"`
-	Components map[string]ComponentHealth   `json:"components"`
-	System     SystemMetrics                `json:"system"`
-	Details    map[string]interface{}       `json:"details,omitempty"`
+	Status     HealthStatus               `json:"status"`
+	Timestamp  time.Time                  `json:"timestamp"`
+	Version    string                     `json:"version"`
+	Uptime     time.Duration              `json:"uptime"`
+	Components map[string]ComponentHealth `json:"components"`
+	System     SystemMetrics              `json:"system"`
+	Details    map[string]interface{}     `json:"details,omitempty"`
 }
 
 // SystemMetrics represents system-level metrics
 type SystemMetrics struct {
-	MemoryUsage    MemoryMetrics `json:"memory"`
-	GoRoutines     int           `json:"goroutines"`
-	CGOCalls       int64         `json:"cgo_calls"`
-	GCStats        GCMetrics     `json:"gc_stats"`
-	OpenFileDesc   int           `json:"open_file_descriptors,omitempty"`
+	MemoryUsage  MemoryMetrics `json:"memory"`
+	GoRoutines   int           `json:"goroutines"`
+	CGOCalls     int64         `json:"cgo_calls"`
+	GCStats      GCMetrics     `json:"gc_stats"`
+	OpenFileDesc int           `json:"open_file_descriptors,omitempty"`
 }
 
 // MemoryMetrics represents memory usage metrics
 type MemoryMetrics struct {
-	Alloc        uint64  `json:"alloc_bytes"`
-	TotalAlloc   uint64  `json:"total_alloc_bytes"`
-	Sys          uint64  `json:"sys_bytes"`
-	NumGC        uint32  `json:"num_gc"`
-	HeapAlloc    uint64  `json:"heap_alloc_bytes"`
-	HeapInuse    uint64  `json:"heap_inuse_bytes"`
-	StackInuse   uint64  `json:"stack_inuse_bytes"`
-	MemoryUsage  float64 `json:"memory_usage_percent"`
+	Alloc       uint64  `json:"alloc_bytes"`
+	TotalAlloc  uint64  `json:"total_alloc_bytes"`
+	Sys         uint64  `json:"sys_bytes"`
+	NumGC       uint32  `json:"num_gc"`
+	HeapAlloc   uint64  `json:"heap_alloc_bytes"`
+	HeapInuse   uint64  `json:"heap_inuse_bytes"`
+	StackInuse  uint64  `json:"stack_inuse_bytes"`
+	MemoryUsage float64 `json:"memory_usage_percent"`
 }
 
 // GCMetrics represents garbage collection metrics
 type GCMetrics struct {
-	NumGC        uint32        `json:"num_gc"`
-	PauseTotal   time.Duration `json:"pause_total_ns"`
-	LastPause    time.Duration `json:"last_pause_ns"`
-	AverageGC    time.Duration `json:"average_gc_pause_ns"`
+	NumGC      uint32        `json:"num_gc"`
+	PauseTotal time.Duration `json:"pause_total_ns"`
+	LastPause  time.Duration `json:"last_pause_ns"`
+	AverageGC  time.Duration `json:"average_gc_pause_ns"`
 }
 
 // HealthChecker defines the interface for health checking
@@ -127,15 +127,15 @@ func (hm *HealthMonitor) CheckHealth(ctx context.Context) *HealthReport {
 		wg.Add(1)
 		go func(n string, c HealthChecker) {
 			defer wg.Done()
-			
+
 			checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			
+
 			health := c.Check(checkCtx)
-			
+
 			mu.Lock()
 			report.Components[n] = health
-			
+
 			// Determine overall status
 			switch health.Status {
 			case HealthStatusUnhealthy:
@@ -161,7 +161,7 @@ func (hm *HealthMonitor) getSystemMetrics() SystemMetrics {
 	runtime.ReadMemStats(&memStats)
 
 	gcMetrics := GCMetrics{
-		NumGC:     memStats.NumGC,
+		NumGC:      memStats.NumGC,
 		PauseTotal: time.Duration(memStats.PauseTotalNs),
 	}
 
@@ -207,7 +207,7 @@ func (hm *HealthMonitor) HTTPHandler() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-		
+
 		if err := json.NewEncoder(w).Encode(report); err != nil {
 			http.Error(w, "Failed to encode health report", http.StatusInternalServerError)
 		}

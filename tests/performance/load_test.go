@@ -40,11 +40,11 @@ type LoadTestResults struct {
 func CreateLoadTestServer() *httptest.Server {
 	// Initialize storage
 	store := storage.NewMemoryStorage()
-	
+
 	// Initialize services
 	authService := auth.NewAuthService(store)
 	plantService := services.NewPlantService(store)
-	
+
 	// Initialize handlers
 	authHandlers := handlers.NewAuthHandlers(authService)
 	plantHandlers := handlers.NewPlantHandlers(plantService, authService)
@@ -84,12 +84,12 @@ func CreateLoadTestServer() *httptest.Server {
 // RunLoadTest executes a load test against the given endpoint
 func RunLoadTest(t *testing.T, server *httptest.Server, endpoint string, config LoadTestConfig) *LoadTestResults {
 	var (
-		totalRequests   int64
-		successfulReqs  int64
-		failedReqs      int64
-		totalTime       int64
-		maxTime         int64
-		minTime         int64 = int64(time.Hour) // Initialize to a large value
+		totalRequests  int64
+		successfulReqs int64
+		failedReqs     int64
+		totalTime      int64
+		maxTime        int64
+		minTime        int64 = int64(time.Hour) // Initialize to a large value
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), config.Duration)
@@ -97,25 +97,25 @@ func RunLoadTest(t *testing.T, server *httptest.Server, endpoint string, config 
 
 	// Calculate ramp-up rate
 	rampUpRate := time.Duration(int64(config.RampUp) / int64(config.Concurrency))
-	
+
 	var wg sync.WaitGroup
 	startTime := time.Now()
 
 	// Start workers with ramp-up
 	for i := 0; i < config.Concurrency; i++ {
 		wg.Add(1)
-		
+
 		go func(workerID int) {
 			defer wg.Done()
-			
+
 			// Ramp-up delay
 			time.Sleep(time.Duration(workerID) * rampUpRate)
-			
+
 			// Create HTTP client for this worker
 			client := &http.Client{
 				Timeout: 10 * time.Second,
 			}
-			
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -124,10 +124,10 @@ func RunLoadTest(t *testing.T, server *httptest.Server, endpoint string, config 
 					reqStart := time.Now()
 					resp, err := client.Get(server.URL + endpoint)
 					reqDuration := time.Since(reqStart)
-					
+
 					atomic.AddInt64(&totalRequests, 1)
 					atomic.AddInt64(&totalTime, int64(reqDuration))
-					
+
 					// Update min/max response times
 					for {
 						current := atomic.LoadInt64(&maxTime)
@@ -138,7 +138,7 @@ func RunLoadTest(t *testing.T, server *httptest.Server, endpoint string, config 
 							break
 						}
 					}
-					
+
 					for {
 						current := atomic.LoadInt64(&minTime)
 						if int64(reqDuration) >= current {
@@ -148,7 +148,7 @@ func RunLoadTest(t *testing.T, server *httptest.Server, endpoint string, config 
 							break
 						}
 					}
-					
+
 					if err != nil || resp.StatusCode != http.StatusOK {
 						atomic.AddInt64(&failedReqs, 1)
 						if err != nil {
@@ -159,11 +159,11 @@ func RunLoadTest(t *testing.T, server *httptest.Server, endpoint string, config 
 					} else {
 						atomic.AddInt64(&successfulReqs, 1)
 					}
-					
+
 					if resp != nil && resp.Body != nil {
 						resp.Body.Close()
 					}
-					
+
 					// Small delay to avoid overwhelming the server
 					time.Sleep(1 * time.Millisecond)
 				}
@@ -205,7 +205,7 @@ func TestHealthEndpointPerformance(t *testing.T) {
 	}
 
 	t.Logf("Starting load test: %d concurrent users for %v", config.Concurrency, config.Duration)
-	
+
 	results := RunLoadTest(t, server, "/health", config)
 
 	t.Logf("Load Test Results:")
@@ -249,7 +249,7 @@ func TestPlantAPIPerformance(t *testing.T) {
 	for _, endpoint := range endpoints {
 		t.Run(endpoint, func(t *testing.T) {
 			t.Logf("Testing endpoint: %s", endpoint)
-			
+
 			results := RunLoadTest(t, server, endpoint, config)
 
 			t.Logf("Results for %s:", endpoint)
@@ -258,9 +258,9 @@ func TestPlantAPIPerformance(t *testing.T) {
 			t.Logf("  Success Rate: %.2f%%", float64(results.SuccessfulReqs)/float64(results.TotalRequests)*100)
 
 			// Basic performance requirements
-			require.Greater(t, float64(results.SuccessfulReqs)/float64(results.TotalRequests), 0.9, 
+			require.Greater(t, float64(results.SuccessfulReqs)/float64(results.TotalRequests), 0.9,
 				"Success rate should be > 90% for %s", endpoint)
-			require.Less(t, results.AvgResponseTime, 200*time.Millisecond, 
+			require.Less(t, results.AvgResponseTime, 200*time.Millisecond,
 				"Average response time should be < 200ms for %s", endpoint)
 		})
 	}
@@ -297,13 +297,13 @@ func TestConcurrentUserScenario(t *testing.T) {
 		wg.Add(1)
 		go func(ep string) {
 			defer wg.Done()
-			
+
 			// Adjust concurrency per endpoint
 			epConfig := config
 			epConfig.Concurrency = config.Concurrency / len(endpoints)
-			
+
 			result := RunLoadTest(t, server, ep, epConfig)
-			
+
 			mu.Lock()
 			results[ep] = result
 			mu.Unlock()
@@ -321,9 +321,9 @@ func TestConcurrentUserScenario(t *testing.T) {
 		totalReqs += result.TotalRequests
 		totalSuccessful += result.SuccessfulReqs
 		totalRPS += result.RequestsPerSecond
-		
-		t.Logf("  %s: %.2f RPS, %.2f%% success", 
-			endpoint, 
+
+		t.Logf("  %s: %.2f RPS, %.2f%% success",
+			endpoint,
 			result.RequestsPerSecond,
 			float64(result.SuccessfulReqs)/float64(result.TotalRequests)*100)
 	}
