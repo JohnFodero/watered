@@ -108,15 +108,32 @@
 
                 async loadPlantData() {
                     try {
-                        // For now, simulate plant data since API isn't implemented yet
-                        // In Task 4, this will fetch from /api/plant
+                        const response = await fetch('/api/plant');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const plantData = await response.json();
+                        
+                        // Convert last_watered string to Date object
+                        if (plantData.last_watered) {
+                            plantData.lastWatered = new Date(plantData.last_watered);
+                        } else {
+                            plantData.lastWatered = null;
+                        }
+                        
                         this.plantData = {
-                            lastWatered: new Date(Date.now() - (5 * 60 * 60 * 1000)), // 5 hours ago
-                            timeoutHours: 24,
-                            wateredBy: this.currentUser ? this.currentUser.email : 'demo@example.com'
+                            lastWatered: plantData.lastWatered,
+                            timeoutHours: plantData.timeout_hours || 24,
+                            wateredBy: plantData.watered_by || 'unknown'
                         };
                     } catch (error) {
                         console.error('Failed to load plant data:', error);
+                        // Fallback to demo data if API fails
+                        this.plantData = {
+                            lastWatered: new Date(Date.now() - (5 * 60 * 60 * 1000)),
+                            timeoutHours: 24,
+                            wateredBy: this.currentUser ? this.currentUser.email : 'demo@example.com'
+                        };
                     }
                 },
 
@@ -125,13 +142,27 @@
 
                     this.isLoading = true;
                     try {
-                        // For now, just update locally
-                        // In Task 4, this will POST to /api/plant/water
+                        const response = await fetch('/api/plant/water', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            credentials: 'include' // Include cookies for authentication
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        
+                        // Update local state with the response
                         this.plantData.lastWatered = new Date();
                         this.plantData.wateredBy = this.currentUser ? this.currentUser.email : 'unknown';
                         
                         this.showNotification('Plant watered successfully! 🌱', 'success');
                     } catch (error) {
+                        console.error('Failed to water plant:', error);
                         this.showNotification('Failed to water plant. Please try again.', 'error');
                     } finally {
                         this.isLoading = false;

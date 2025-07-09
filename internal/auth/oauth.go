@@ -55,13 +55,24 @@ func NewAuthService(storage storage.Storage) *AuthService {
 	if sessionSecret == "" {
 		sessionSecret = "development-secret-change-in-production"
 		log.Printf("Warning: SESSION_SECRET not set. Using development secret.")
+	} else {
+		log.Printf("SESSION_SECRET loaded successfully (length: %d characters)", len(sessionSecret))
 	}
+
+	// Determine redirect URL based on environment
+	redirectURL := os.Getenv("REDIRECT_URL")
+	if redirectURL == "" {
+		// Default to localhost for development
+		redirectURL = "http://localhost:8080/auth/callback"
+	}
+
+	log.Printf("OAuth redirect URL: %s", redirectURL)
 
 	// Create OAuth2 config
 	oauth2Config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		RedirectURL:  "http://localhost:8080/auth/callback",
+		RedirectURL:  redirectURL,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
@@ -69,13 +80,24 @@ func NewAuthService(storage storage.Storage) *AuthService {
 		Endpoint: google.Endpoint,
 	}
 
+	// Determine if we should use secure cookies (HTTPS)
+	secureCookies := os.Getenv("SECURE_COOKIES") == "true"
+	environment := os.Getenv("ENVIRONMENT")
+
+	// Auto-detect secure cookies for production environments
+	if environment == "production" || environment == "prod" {
+		secureCookies = true
+	}
+
+	log.Printf("Cookie configuration: secure=%v, environment=%s", secureCookies, environment)
+
 	// Create secure cookie store
 	store := sessions.NewCookieStore([]byte(sessionSecret))
 	store.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   24 * 60 * 60, // 24 hours
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	}
 
@@ -156,12 +178,50 @@ func (a *AuthService) HandleCallback(ctx context.Context, code string) (*GoogleU
 
 // IsUserAllowed checks if a user email is in the whitelist
 func (a *AuthService) IsUserAllowed(email string) bool {
-	return a.allowedEmails[email]
+	// First check static configuration (for fallback/demo mode)
+	if a.allowedEmails[email] {
+		return true
+	}
+
+	// Then check dynamic admin configuration from storage
+	config, err := a.storage.GetAdminConfig()
+	if err != nil || config == nil {
+		log.Printf("Warning: Failed to get admin config, using static allowlist: %v", err)
+		return a.allowedEmails[email]
+	}
+
+	// Check if email is in the dynamic allowlist
+	for _, allowedEmail := range config.AllowedEmails {
+		if allowedEmail == email {
+			return true
+		}
+	}
+
+	return false
 }
 
 // IsUserAdmin checks if a user email is in the admin list
 func (a *AuthService) IsUserAdmin(email string) bool {
-	return a.adminEmails[email]
+	// First check static configuration (for fallback/demo mode)
+	if a.adminEmails[email] {
+		return true
+	}
+
+	// Then check dynamic admin configuration from storage
+	config, err := a.storage.GetAdminConfig()
+	if err != nil || config == nil {
+		log.Printf("Warning: Failed to get admin config, using static admin list: %v", err)
+		return a.adminEmails[email]
+	}
+
+	// Check if email is in the dynamic admin list
+	for _, adminEmail := range config.AdminEmails {
+		if adminEmail == email {
+			return true
+		}
+	}
+
+	return false
 }
 
 // CreateSession creates a new user session
@@ -240,7 +300,18 @@ func (a *AuthService) IsAuthenticated(r *http.Request) bool {
 
 // GetSession returns the current session
 func (a *AuthService) GetSession(r *http.Request) (*sessions.Session, error) {
-	return a.store.Get(r, "watered-session")
+	session, err := a.store.Get(r, "watered-session")
+	if err != nil {
+		log.Printf("GetSession error: %v", err)
+		log.Printf("GetSession: Cookie count: %d", len(r.Cookies()))
+		for _, cookie := range r.Cookies() {
+			if cookie.Name == "watered-session" {
+				log.Printf("GetSession: Found session cookie (length: %d)", len(cookie.Value))
+				break
+			}
+		}
+	}
+	return session, err
 }
 
 // ClearSession logs out the user by clearing their session

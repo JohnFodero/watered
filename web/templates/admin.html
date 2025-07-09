@@ -132,7 +132,7 @@
                             </div>
                             <div style="text-align: center; padding: 1rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
                                 <h4>System Status</h4>
-                                <span style="font-size: 2rem; color: var(--success-color);">✅</span>
+                                <span style="font-size: 2rem;" :style="getSystemStatusStyle()" x-text="getSystemStatusIcon()"></span>
                             </div>
                         </div>
                     </div>
@@ -150,12 +150,17 @@
                 isAdmin: true, // Auth validation handled by backend middleware
                 config: {
                     timeoutHours: 24,
-                    allowedEmails: ['user1@example.com', 'user2@example.com'],
-                    adminEmails: ['admin@example.com']
+                    allowedEmails: [],
+                    adminEmails: []
                 },
                 plantData: {
-                    lastWatered: new Date(Date.now() - (8 * 60 * 60 * 1000)), // 8 hours ago
-                    wateredBy: 'user1@example.com'
+                    lastWatered: null,
+                    wateredBy: null
+                },
+                systemStatus: {
+                    status: 'loading',
+                    uptime: 0,
+                    version: 'unknown'
                 },
                 newEmail: '',
                 notification: {
@@ -167,6 +172,7 @@
                 async init() {
                     await this.loadConfig();
                     await this.loadPlantData();
+                    await this.loadSystemStatus();
                 },
 
                 async loadConfig() {
@@ -306,6 +312,25 @@
                     }
                 },
 
+                async loadSystemStatus() {
+                    try {
+                        const response = await fetch('/api/status');
+                        if (response.ok) {
+                            const status = await response.json();
+                            this.systemStatus = {
+                                status: status.status === 'ok' ? 'healthy' : 'error',
+                                uptime: 0, // Not provided by current API
+                                version: status.version || 'unknown'
+                            };
+                        } else {
+                            this.systemStatus.status = 'error';
+                        }
+                    } catch (error) {
+                        console.error('Failed to load system status:', error);
+                        this.systemStatus.status = 'error';
+                    }
+                },
+
                 getPlantStatusText() {
                     if (!this.plantData.lastWatered) return 'Never watered';
                     
@@ -330,6 +355,32 @@
                 getLastWateredText() {
                     if (!this.plantData.lastWatered) return 'Never';
                     return new Date(this.plantData.lastWatered).toLocaleString();
+                },
+
+                getSystemStatusIcon() {
+                    switch (this.systemStatus.status) {
+                        case 'healthy':
+                            return '✅';
+                        case 'loading':
+                            return '⏳';
+                        case 'error':
+                            return '❌';
+                        default:
+                            return '⚠️';
+                    }
+                },
+
+                getSystemStatusStyle() {
+                    switch (this.systemStatus.status) {
+                        case 'healthy':
+                            return 'color: var(--success-color);';
+                        case 'loading':
+                            return 'color: var(--muted-text);';
+                        case 'error':
+                            return 'color: var(--error-color);';
+                        default:
+                            return 'color: var(--warning-color);';
+                    }
                 },
 
                 showNotification(message, type = 'success') {
