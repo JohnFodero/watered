@@ -227,6 +227,7 @@ func TestPlantState_GetHoursSinceWatering(t *testing.T) {
 	hours := plant.GetHoursSinceWatering()
 	if hours == nil {
 		t.Error("Expected hours since watering, got nil")
+		return
 	}
 
 	if *hours < 1.9 || *hours > 2.1 {
@@ -249,6 +250,7 @@ func TestPlantState_GetTimeSinceWatering(t *testing.T) {
 	duration := plant.GetTimeSinceWatering()
 	if duration == nil {
 		t.Error("Expected duration since watering, got nil")
+		return
 	}
 
 	if duration.Minutes() < 29 || duration.Minutes() > 31 {

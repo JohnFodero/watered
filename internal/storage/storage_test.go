@@ -44,6 +44,7 @@ func TestMemoryStorage_PlantOperations(t *testing.T) {
 	}
 	if retrievedState == nil {
 		t.Errorf("Expected plant state, got nil")
+		return
 	}
 	if retrievedState.Name != "Test Plant" {
 		t.Errorf("Expected name 'Test Plant', got '%s'", retrievedState.Name)
@@ -85,6 +86,7 @@ func TestMemoryStorage_UserOperations(t *testing.T) {
 	}
 	if retrievedUser == nil {
 		t.Errorf("Expected user, got nil")
+		return
 	}
 	if retrievedUser.Email != email {
 		t.Errorf("Expected email '%s', got '%s'", email, retrievedUser.Email)
@@ -128,6 +130,7 @@ func TestMemoryStorage_AdminConfig(t *testing.T) {
 	}
 	if retrievedConfig == nil {
 		t.Errorf("Expected config, got nil")
+		return
 	}
 	if retrievedConfig.TimeoutHours != 48 {
 		t.Errorf("Expected timeout 48, got %d", retrievedConfig.TimeoutHours)
