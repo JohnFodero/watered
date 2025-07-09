@@ -245,21 +245,21 @@ jobs:
 
     # Google Cloud Artifact Registry Push (only on main branch)
     - name: Authenticate to Google Cloud
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
     - name: Set up Google Cloud SDK
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY
       uses: google-github-actions/setup-gcloud@v2
 
     - name: Configure Docker for Google Cloud
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY
       run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
     - name: Extract metadata for Google Cloud Registry
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY
       id: meta-gcp
       uses: docker/metadata-action@v5
       with:
@@ -270,7 +270,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push to Google Cloud Artifact Registry
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -282,7 +282,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Verify GCP deployment
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY
       run: |
         echo "🎉 Successfully pushed to Google Cloud Artifact Registry!"
         echo "📦 Images available at:"
