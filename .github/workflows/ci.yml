@@ -294,7 +294,7 @@ jobs:
     - name: GCP deployment summary
       if: github.ref == 'refs/heads/main'
       run: |
-        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+        if [ "${{ secrets.GCP_SA_KEY != '' }}" = "true" ]; then
           echo "✅ GCP deployment configured and executed"
         else
           echo "ℹ️ GCP deployment skipped (no GCP_SA_KEY secret configured)"
@@ -337,7 +337,7 @@ jobs:
         echo ""
         echo "📦 Available images for deployment:"
         echo "   - GitHub: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+        if [ "${{ secrets.GCP_SA_KEY != '' }}" = "true" ]; then
           echo "   - GCP: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/watered-repo/watered:latest"
         else
           echo "   - GCP: Not configured (add GCP_SA_KEY secret to enable)"
@@ -357,7 +357,7 @@ jobs:
           echo "✅ Deployment successful"
           echo "🐳 Docker images deployed to:"
           echo "   - GitHub Container Registry: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+          if [ "${{ secrets.GCP_SA_KEY != '' }}" = "true" ]; then
             echo "   - Google Cloud Artifact Registry: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/watered-repo/watered:latest"
           else
             echo "   - Google Cloud Artifact Registry: Skipped (no GCP_SA_KEY secret)"
