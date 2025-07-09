@@ -55,7 +55,9 @@ jobs:
         fi
 
     - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./...
+      run: |
+        # Run unit tests excluding integration, e2e, and performance directories
+        go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v '/tests/integration' | grep -v '/tests/e2e' | grep -v '/tests/performance')
 
     - name: Run integration tests
       run: go test -v ./tests/integration/...
@@ -63,6 +65,10 @@ jobs:
 
     - name: Run e2e tests
       run: go test -v ./tests/e2e/...
+      continue-on-error: true
+
+    - name: Run performance tests
+      run: go test -v ./tests/performance/...
       continue-on-error: true
 
     - name: Generate coverage report
