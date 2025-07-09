@@ -23,10 +23,17 @@ jobs:
       with:
         go-version: '1.23'
 
-    - name: Run Nancy vulnerability scanner
+    - name: Run Nancy vulnerability scanner (fallback to govulncheck)
       run: |
-        go install github.com/sonatypecommunity/nancy@latest
-        go list -json -deps ./... | nancy sleuth
+        echo "Attempting to install nancy..."
+        if go install github.com/sonatypecommunity/nancy@latest; then
+          echo "Nancy installed successfully"
+          go list -json -deps ./... | nancy sleuth
+        else
+          echo "Nancy installation failed, using govulncheck instead"
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+        fi
 
     - name: Run govulncheck
       run: |
