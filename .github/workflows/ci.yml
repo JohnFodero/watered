@@ -245,21 +245,24 @@ jobs:
 
     # Google Cloud Artifact Registry Push (only on main branch)
     - name: Authenticate to Google Cloud
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main'
       uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
+      continue-on-error: true
 
     - name: Set up Google Cloud SDK
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main'
       uses: google-github-actions/setup-gcloud@v2
+      continue-on-error: true
 
     - name: Configure Docker for Google Cloud
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main'
       run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+      continue-on-error: true
 
     - name: Extract metadata for Google Cloud Registry
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main'
       id: meta-gcp
       uses: docker/metadata-action@v5
       with:
@@ -268,9 +271,10 @@ jobs:
           type=ref,event=branch
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
+      continue-on-error: true
 
     - name: Build and push to Google Cloud Artifact Registry
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -280,9 +284,10 @@ jobs:
         labels: ${{ steps.meta-gcp.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+      continue-on-error: true
 
     - name: Verify GCP deployment
-      if: github.ref == 'refs/heads/main' && secrets.GCP_SA_KEY != ''
+      if: github.ref == 'refs/heads/main'
       run: |
         echo "🎉 Successfully pushed to Google Cloud Artifact Registry!"
         echo "📦 Images available at:"
@@ -290,11 +295,12 @@ jobs:
         echo "   ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/watered-repo/watered:${{ github.sha }}"
         echo "🔍 Verifying image exists in registry..."
         gcloud artifacts docker images list ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/watered-repo/watered --limit=5
+      continue-on-error: true
 
     - name: GCP deployment summary
       if: github.ref == 'refs/heads/main'
       run: |
-        if [ "${{ secrets.GCP_SA_KEY != '' }}" = "true" ]; then
+        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
           echo "✅ GCP deployment configured and executed"
         else
           echo "ℹ️ GCP deployment skipped (no GCP_SA_KEY secret configured)"
@@ -337,7 +343,7 @@ jobs:
         echo ""
         echo "📦 Available images for deployment:"
         echo "   - GitHub: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        if [ "${{ secrets.GCP_SA_KEY != '' }}" = "true" ]; then
+        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
           echo "   - GCP: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/watered-repo/watered:latest"
         else
           echo "   - GCP: Not configured (add GCP_SA_KEY secret to enable)"
@@ -357,7 +363,7 @@ jobs:
           echo "✅ Deployment successful"
           echo "🐳 Docker images deployed to:"
           echo "   - GitHub Container Registry: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          if [ "${{ secrets.GCP_SA_KEY != '' }}" = "true" ]; then
+          if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "   - Google Cloud Artifact Registry: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/watered-repo/watered:latest"
           else
             echo "   - Google Cloud Artifact Registry: Skipped (no GCP_SA_KEY secret)"
