@@ -137,6 +137,104 @@ docker-build-fresh:
     docker build --no-cache -t watered:latest .
     @echo "✅ Docker image built: watered:latest"
 
+# Google Cloud Artifact Registry Commands
+# =======================================
+
+# Setup Docker buildx for cross-platform builds
+docker-setup-buildx:
+    @echo "🔧 Setting up Docker buildx for cross-platform builds..."
+    @if docker buildx inspect multiplatform >/dev/null 2>&1; then \
+        echo "✅ Buildx builder 'multiplatform' already exists"; \
+    else \
+        echo "🏗️  Creating buildx builder for cross-platform builds..."; \
+        docker buildx create --name multiplatform --use --bootstrap; \
+        echo "✅ Buildx builder 'multiplatform' created and activated"; \
+    fi
+    @echo "🔍 Current buildx builder:"
+    @docker buildx ls
+
+# Build and tag image for Google Cloud Artifact Registry (AMD64 for compatibility)
+docker-build-gcp:
+    @echo "🐳 Building Docker image for Google Cloud (linux/amd64)..."
+    @if [ -z "${GCP_PROJECT_ID}" ]; then echo "❌ GCP_PROJECT_ID environment variable not set"; exit 1; fi
+    @if [ -z "${GCP_REGION}" ]; then echo "❌ GCP_REGION environment variable not set"; exit 1; fi
+    @echo "🏗️  Building for linux/amd64 platform to ensure GCP compatibility..."
+    docker buildx build --platform linux/amd64 -t watered:latest .
+    docker tag watered:latest ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:latest
+    docker tag watered:latest ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:$(git rev-parse --short HEAD)
+    @echo "✅ Docker image built and tagged for GCP Artifact Registry (AMD64)"
+
+# Push image to Google Cloud Artifact Registry
+docker-push-gcp:
+    @echo "🚀 Pushing Docker image to Google Cloud Artifact Registry..."
+    @if [ -z "${GCP_PROJECT_ID}" ]; then echo "❌ GCP_PROJECT_ID environment variable not set"; exit 1; fi
+    @if [ -z "${GCP_REGION}" ]; then echo "❌ GCP_REGION environment variable not set"; exit 1; fi
+    @echo "🔐 Configuring Docker authentication for GCP..."
+    gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
+    @echo "⬆️  Pushing latest tag..."
+    docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:latest
+    @echo "⬆️  Pushing commit-specific tag..."
+    docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:$(git rev-parse --short HEAD)
+    @echo "✅ Docker image pushed to GCP Artifact Registry"
+
+# Build and push to Google Cloud Artifact Registry in one command
+docker-deploy-gcp: docker-build-gcp docker-push-gcp
+    @echo "🎉 Successfully deployed to Google Cloud Artifact Registry!"
+    @echo "📦 Images available at:"
+    @echo "   ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:latest"
+    @echo "   ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:$(git rev-parse --short HEAD)"
+
+# Setup Google Cloud authentication (interactive)
+gcp-setup:
+    @echo "🔧 Setting up Google Cloud configuration..."
+    @echo "This will guide you through setting up authentication for GCP Artifact Registry"
+    @echo ""
+    @echo "1. Setting up Docker buildx for cross-platform builds..."
+    @docker buildx inspect multiplatform >/dev/null 2>&1 || docker buildx create --name multiplatform --use --bootstrap
+    @echo ""
+    @echo "2. Authenticating with Google Cloud..."
+    gcloud auth login
+    @echo ""
+    @echo "3. Configuring Docker authentication..."
+    @if [ -z "${GCP_REGION}" ]; then \
+        echo "Enter your GCP region (e.g., us-central1, europe-west1):"; \
+        read -p "Region: " GCP_REGION; \
+        echo "export GCP_REGION=$$GCP_REGION" >> .env.local; \
+    fi
+    @if [ -z "${GCP_PROJECT_ID}" ]; then \
+        echo "Enter your GCP Project ID:"; \
+        read -p "Project ID: " GCP_PROJECT_ID; \
+        echo "export GCP_PROJECT_ID=$$GCP_PROJECT_ID" >> .env.local; \
+    fi
+    @echo ""
+    @echo "✅ Google Cloud setup complete!"
+    @echo "💡 Environment variables saved to .env.local"
+    @echo "💡 Source them with: source .env.local"
+    @echo "💡 Docker buildx configured for cross-platform builds"
+
+# List images in Google Cloud Artifact Registry
+gcp-list-images:
+    @echo "📦 Listing images in Google Cloud Artifact Registry..."
+    @if [ -z "${GCP_PROJECT_ID}" ]; then echo "❌ GCP_PROJECT_ID environment variable not set"; exit 1; fi
+    @if [ -z "${GCP_REGION}" ]; then echo "❌ GCP_REGION environment variable not set"; exit 1; fi
+    gcloud artifacts docker images list ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo
+
+# Pull image from Google Cloud Artifact Registry
+docker-pull-gcp TAG="latest":
+    @echo "⬇️  Pulling Docker image from Google Cloud Artifact Registry..."
+    @if [ -z "${GCP_PROJECT_ID}" ]; then echo "❌ GCP_PROJECT_ID environment variable not set"; exit 1; fi
+    @if [ -z "${GCP_REGION}" ]; then echo "❌ GCP_REGION environment variable not set"; exit 1; fi
+    gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
+    docker pull ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:{{TAG}}
+    @echo "✅ Image pulled successfully"
+
+# Run container from Google Cloud Artifact Registry
+docker-run-gcp TAG="latest":
+    @echo "🐳 Running container from Google Cloud Artifact Registry..."
+    @if [ -z "${GCP_PROJECT_ID}" ]; then echo "❌ GCP_PROJECT_ID environment variable not set"; exit 1; fi
+    @if [ -z "${GCP_REGION}" ]; then echo "❌ GCP_REGION environment variable not set"; exit 1; fi
+    docker run -p 8080:8080 ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/watered-repo/watered:{{TAG}}
+
 # Run with Docker (development mode)
 docker-run:
     @echo "🐳 Running with Docker..."
@@ -247,9 +345,10 @@ setup:
     @echo "✅ Setup complete!"
     @echo ""
     @echo "📖 Next steps:"
-    @echo "   1. Update .env with your Google OAuth credentials (see docs/GOOGLE_OAUTH_SETUP.md)"
-    @echo "   2. Run 'just run' to start the server"
-    @echo "   3. Visit http://localhost:8080/auth/demo-login for testing"
+    @echo "   1. Edit .env file with your configuration (see docs/env-configuration.md)"
+    @echo "   2. For production: Add Google OAuth credentials to disable demo mode"
+    @echo "   3. Run 'just run' to start the server (automatically loads .env)"
+    @echo "   4. For demo mode: Visit http://localhost:8080/auth/demo-login"
 
 # Install development dependencies
 install-dev:

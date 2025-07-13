@@ -28,6 +28,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Maintain clean, readable code structure
 - Always make a new commit after a task is completed and all tests for that step are passing
 
+**Development Workflow:**
+- **ALWAYS use `just` commands** for building, testing, and running the application
+- **Test thoroughly** before committing - run `just test` to ensure all functionality works
+- **Write tests for new features** - add unit tests, integration tests, and e2e tests as needed
+- **Validate with multiple test types** - ensure code works in isolation and in full system context
+- **Fix failing tests immediately** - never commit with failing tests unless explicitly documenting why
+
 ## Development Setup
 
 ### Prerequisites
@@ -36,19 +43,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Node.js (for any frontend tooling)
 
 ### Running the Application
+**Use `just` commands for all development tasks - run `just` to see all available commands.**
+
 ```bash
-# Development with Docker
-docker-compose up --build
+# Primary development commands
+just run              # Run the development server
+just test             # Run all tests
+just build            # Build the application
+just check            # Run formatting, linting, and tests
 
-# Run Go backend directly
-go run cmd/server/main.go
+# Development workflow
+just dev              # Run with auto-reload (requires entr)
+just docker-up        # Run with Docker Compose
+just test-verbose     # Run tests with detailed output
+just test-coverage    # Run tests with coverage report
 
-# Run tests
-go test ./...
-
-# Build for production
-go build -o bin/watered cmd/server/main.go
+# Code quality
+just fmt              # Format code
+just vet              # Run static analysis
+just tidy             # Clean up module dependencies
 ```
+
+**Important:** Always use `just test` before committing. Add new tests for any functionality you create.
 
 ### Project Structure
 ```
@@ -58,12 +74,17 @@ watered/
 │   ├── auth/          # Authentication logic
 │   ├── handlers/      # HTTP handlers
 │   ├── models/        # Data models
-│   └── storage/       # Database layer
-├── pkg/               # Public libraries
+│   ├── services/      # Business logic
+│   ├── storage/       # Database layer
+│   └── monitoring/    # Health checks and monitoring
 ├── web/               # Frontend assets
 │   ├── static/        # CSS, JS, images
 │   └── templates/     # HTML templates
-├── tasks/             # Development task files
+├── tests/             # Test files
+│   ├── e2e/          # End-to-end tests
+│   ├── integration/  # Integration tests
+│   └── performance/  # Performance tests
+├── justfile           # Build and development commands
 └── docker-compose.yml # Development environment
 ```
 
@@ -79,8 +100,9 @@ watered/
 - Go HTTP server with Chi router (github.com/go-chi/chi/v5)
 - RESTful API for plant state management
 - Google OAuth2 integration for authentication
-- In-memory storage initially, SQLite for persistence
+- In-memory storage (currently), SQLite planned for persistence
 - Admin API endpoints for configuration
+- Comprehensive health monitoring and logging
 
 **Authentication Flow:**
 1. User visits app, redirected to Google OAuth
@@ -93,6 +115,32 @@ watered/
 - User (email, name, admin status)
 - PlantState (last_watered, timeout_hours)
 - AdminConfig (timeout, whitelisted_emails)
+
+## Testing Strategy
+
+**Test Coverage Requirements:**
+- **Unit Tests:** Test individual functions and methods in isolation
+- **Integration Tests:** Test API endpoints and service interactions
+- **End-to-End Tests:** Test complete user workflows
+- **Performance Tests:** Validate system performance under load
+
+**Testing Commands:**
+```bash
+just test              # Run all tests
+just test-verbose      # Run with detailed output
+just test-coverage     # Generate coverage report
+just test-package auth # Test specific package
+```
+
+**Testing Guidelines:**
+- Write tests for all new features before implementing them (TDD approach)
+- Ensure tests are fast, reliable, and independent
+- Mock external dependencies (Google OAuth, etc.)
+- Test error conditions and edge cases
+- Maintain high test coverage (aim for >80%)
+- Use table-driven tests for multiple scenarios
+- Add integration tests for API endpoints
+- Include e2e tests for critical user flows
 
 ## Design Theme
 

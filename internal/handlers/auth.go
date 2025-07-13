@@ -33,15 +33,17 @@ func (h *AuthHandlers) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Store state in session for validation
 	session, err := h.authService.GetSession(r)
 	if err != nil {
-		log.Printf("Failed to get session: %v", err)
-		http.Error(w, "Session error", http.StatusInternalServerError)
+		log.Printf("LoginHandler: Failed to get session - %v", err)
+		log.Printf("LoginHandler: User-Agent: %s", r.Header.Get("User-Agent"))
+		log.Printf("LoginHandler: Request from: %s", r.RemoteAddr)
+		http.Error(w, "Session initialization failed. Please clear your browser cookies and try again.", http.StatusInternalServerError)
 		return
 	}
 
 	session.Values["oauth_state"] = state
 	if err := session.Save(r, w); err != nil {
-		log.Printf("Failed to save session: %v", err)
-		http.Error(w, "Session error", http.StatusInternalServerError)
+		log.Printf("LoginHandler: Failed to save session state - %v", err)
+		http.Error(w, "Session storage failed. Please clear your browser cookies and try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -63,8 +65,11 @@ func (h *AuthHandlers) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	session, err := h.authService.GetSession(r)
 	if err != nil {
-		log.Printf("Failed to get session: %v", err)
-		http.Error(w, "Session error", http.StatusInternalServerError)
+		log.Printf("CallbackHandler: Failed to get session - %v", err)
+		log.Printf("CallbackHandler: User-Agent: %s", r.Header.Get("User-Agent"))
+		log.Printf("CallbackHandler: Request from: %s", r.RemoteAddr)
+		log.Printf("CallbackHandler: State parameter: %s", state)
+		http.Error(w, "Session validation failed. Please clear your browser cookies and try logging in again.", http.StatusInternalServerError)
 		return
 	}
 

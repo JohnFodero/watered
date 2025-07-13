@@ -7,6 +7,7 @@ toolchain go1.23.10
 require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/gorilla/sessions v1.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/oauth2 v0.30.0
 )

@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 
 	"watered/internal/auth"
 	"watered/internal/handlers"
@@ -22,6 +23,9 @@ import (
 )
 
 func main() {
+	// Load environment variables from .env files
+	loadEnvFiles()
+
 	// Initialize storage
 	store := storage.NewMemoryStorage()
 	defer store.Close()
@@ -146,7 +150,15 @@ func main() {
 			return
 		}
 
-		if err := templates.ExecuteTemplate(w, "login.html", nil); err != nil {
+		// Check if demo mode is enabled (when GOOGLE_CLIENT_ID is not set or is demo value)
+		clientID := os.Getenv("GOOGLE_CLIENT_ID")
+		demoMode := clientID == "" || clientID == "demo-client-id"
+
+		templateData := map[string]interface{}{
+			"DemoMode": demoMode,
+		}
+
+		if err := templates.ExecuteTemplate(w, "login.html", templateData); err != nil {
 			http.Error(w, "Template error", http.StatusInternalServerError)
 			log.Printf("Template error: %v", err)
 		}
@@ -207,4 +219,81 @@ func main() {
 	}
 
 	log.Println("Server exited")
+}
+
+// loadEnvFiles loads environment variables from .env files in order of precedence
+func loadEnvFiles() {
+	// Environment files to load in order of precedence (last wins)
+	envFiles := []string{
+		".env.example", // Template with defaults (lowest priority)
+		".env",         // Main environment file
+		".env.local",   // Local overrides (highest priority)
+	}
+
+	// Also check for environment-specific files
+	if env := os.Getenv("ENVIRONMENT"); env != "" {
+		envFiles = append(envFiles, ".env."+env)
+	}
+
+	loadedFiles := []string{}
+
+	for _, file := range envFiles {
+		if err := godotenv.Load(file); err == nil {
+			loadedFiles = append(loadedFiles, file)
+		}
+		// Silently ignore missing files - they're optional
+	}
+
+	if len(loadedFiles) > 0 {
+		log.Printf("Loaded environment variables from: %v", loadedFiles)
+	}
+
+	// Log current configuration status (without sensitive values)
+	logConfigurationStatus()
+}
+
+// logConfigurationStatus logs the current configuration status
+func logConfigurationStatus() {
+	clientID := os.Getenv("GOOGLE_CLIENT_ID")
+	sessionSecret := os.Getenv("SESSION_SECRET")
+	allowedEmails := os.Getenv("ALLOWED_EMAILS")
+	adminEmails := os.Getenv("ADMIN_EMAILS")
+	environment := os.Getenv("ENVIRONMENT")
+
+	log.Printf("Configuration Status:")
+	log.Printf("  Environment: %s", getEnvOrDefault(environment, "development"))
+
+	if clientID != "" && clientID != "demo-client-id" {
+		log.Printf("  OAuth Mode: Production (Google OAuth enabled)")
+		log.Printf("  Demo Login: Disabled")
+	} else {
+		log.Printf("  OAuth Mode: Demo (Google OAuth not configured)")
+		log.Printf("  Demo Login: Available at /auth/demo-login")
+	}
+
+	if sessionSecret != "" && sessionSecret != "development-secret-change-in-production" {
+		log.Printf("  Session Secret: Configured")
+	} else {
+		log.Printf("  Session Secret: Using development default")
+	}
+
+	if allowedEmails != "" {
+		log.Printf("  Allowed Emails: Configured")
+	} else {
+		log.Printf("  Allowed Emails: Using demo defaults")
+	}
+
+	if adminEmails != "" {
+		log.Printf("  Admin Emails: Configured")
+	} else {
+		log.Printf("  Admin Emails: Using demo defaults")
+	}
+}
+
+// getEnvOrDefault returns the environment variable value or default if empty
+func getEnvOrDefault(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
