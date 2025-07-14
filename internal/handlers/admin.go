@@ -113,10 +113,31 @@ func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	if config == nil {
+		// Use environment variable logic for initial config
+		allowedEmails := getEmailsFromEnv("ALLOWED_EMAILS", []string{})
+		adminEmails := getEmailsFromEnv("ADMIN_EMAILS", []string{})
+		
+		// In demo mode (no env vars set), provide demo defaults
+		if len(allowedEmails) == 0 && len(adminEmails) == 0 {
+			allowedEmails = []string{"demo@example.com", "user1@example.com", "user2@example.com", "test@example.com"}
+			adminEmails = []string{"admin@example.com"}
+		}
+		
+		// Ensure admin emails are also in allowed emails
+		allowedEmailsMap := make(map[string]bool)
+		for _, email := range allowedEmails {
+			allowedEmailsMap[email] = true
+		}
+		for _, email := range adminEmails {
+			if !allowedEmailsMap[email] {
+				allowedEmails = append(allowedEmails, email)
+			}
+		}
+		
 		config = &models.AdminConfig{
 			TimeoutHours:  request.TimeoutHours,
-			AllowedEmails: []string{"admin@example.com"},
-			AdminEmails:   []string{"admin@example.com"},
+			AllowedEmails: allowedEmails,
+			AdminEmails:   adminEmails,
 		}
 	} else {
 		config.TimeoutHours = request.TimeoutHours
@@ -126,6 +147,21 @@ func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Reque
 	if err := h.storage.UpdateAdminConfig(config); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update config: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// Also update the plant timeout to keep them synchronized
+	plant, err := h.storage.GetPlantState()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get plant state: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	if plant != nil {
+		plant.TimeoutHours = request.TimeoutHours
+		if err := h.storage.UpdatePlantState(plant); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to update plant timeout: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Return success response
