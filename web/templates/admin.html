@@ -191,9 +191,9 @@
                         if (response.ok) {
                             const config = await response.json();
                             this.config = {
-                                timeoutHours: config.timeoutHours || 24,
-                                allowedEmails: config.allowedEmails || [],
-                                adminEmails: config.adminEmails || []
+                                timeoutHours: config.timeout_hours || 24,
+                                allowedEmails: config.allowed_emails || [],
+                                adminEmails: config.admin_emails || []
                             };
                         } else {
                             throw new Error('Failed to load config');
