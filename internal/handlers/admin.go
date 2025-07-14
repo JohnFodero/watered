@@ -71,7 +71,7 @@ func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) 
 		}
 		
 		config = &models.AdminConfig{
-			TimeoutHours:  24,
+			TimeoutHours:  24, // This will be overridden below
 			AllowedEmails: allowedEmails,
 			AdminEmails:   adminEmails,
 		}
@@ -79,6 +79,11 @@ func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, fmt.Sprintf("Failed to create default config: %v", err), http.StatusInternalServerError)
 			return
 		}
+	}
+
+	// Always sync timeout with current plant state (plant is source of truth)
+	if plant, err := h.storage.GetPlantState(); err == nil && plant != nil {
+		config.TimeoutHours = plant.TimeoutHours
 	}
 
 	w.Header().Set("Content-Type", "application/json")

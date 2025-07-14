@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"watered/internal/models"
@@ -447,6 +448,82 @@ func TestAdminHandler_GetConfigWithEnvironmentVariables(t *testing.T) {
 			assert.Equal(t, tt.expectedAdmins, config.AdminEmails)
 		})
 	}
+}
+
+func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
+	t.Run("admin config should reflect plant timeout", func(t *testing.T) {
+		// Setup
+		store := storage.NewMemoryStorage()
+		
+		// Create plant with custom timeout
+		plant := &models.PlantState{
+			ID:           1,
+			Name:         "Test Plant",
+			TimeoutHours: 48, // Different from default 24
+		}
+		store.UpdatePlantState(plant)
+		
+		handler := NewAdminHandler(store)
+
+		// Create request
+		req := httptest.NewRequest("GET", "/admin/config", nil)
+		rr := httptest.NewRecorder()
+
+		// Execute
+		handler.GetConfigHandler(rr, req)
+
+		// Assert
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		var config models.AdminConfig
+		err := json.Unmarshal(rr.Body.Bytes(), &config)
+		require.NoError(t, err)
+		
+		// Admin config timeout should match plant timeout
+		assert.Equal(t, 48, config.TimeoutHours)
+	})
+
+	t.Run("updating admin timeout should update plant timeout", func(t *testing.T) {
+		// Setup
+		store := storage.NewMemoryStorage()
+		
+		// Create plant with initial timeout
+		plant := &models.PlantState{
+			ID:           1,
+			Name:         "Test Plant",
+			TimeoutHours: 24,
+		}
+		store.UpdatePlantState(plant)
+		
+		handler := NewAdminHandler(store)
+
+		// Update timeout via admin endpoint
+		requestBody := `{"timeoutHours": 72}`
+		req := httptest.NewRequest("PUT", "/admin/config/timeout", strings.NewReader(requestBody))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+
+		handler.UpdateTimeoutHandler(rr, req)
+
+		// Assert update was successful
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		// Verify plant timeout was updated
+		updatedPlant, err := store.GetPlantState()
+		require.NoError(t, err)
+		assert.Equal(t, 72, updatedPlant.TimeoutHours)
+		
+		// Verify admin config now returns the updated timeout
+		req2 := httptest.NewRequest("GET", "/admin/config", nil)
+		rr2 := httptest.NewRecorder()
+		handler.GetConfigHandler(rr2, req2)
+		
+		assert.Equal(t, http.StatusOK, rr2.Code)
+		var config models.AdminConfig
+		err = json.Unmarshal(rr2.Body.Bytes(), &config)
+		require.NoError(t, err)
+		assert.Equal(t, 72, config.TimeoutHours)
+	})
 }
 
 func TestAdminHandler_GetStatsHandler(t *testing.T) {
