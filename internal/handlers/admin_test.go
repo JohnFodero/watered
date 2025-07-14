@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"watered/internal/models"
@@ -41,12 +42,12 @@ func TestAdminHandler_GetConfigHandler(t *testing.T) {
 			},
 		},
 		{
-			name:           "should create default config when none exists",
+			name:           "should create default config when none exists (demo mode)",
 			setupStorage:   func(s *storage.MemoryStorage) {},
 			expectedStatus: http.StatusOK,
 			expectedConfig: &models.AdminConfig{
 				TimeoutHours:  24,
-				AllowedEmails: []string{"admin@example.com"},
+				AllowedEmails: []string{"demo@example.com", "user1@example.com", "user2@example.com", "test@example.com", "admin@example.com"},
 				AdminEmails:   []string{"admin@example.com"},
 			},
 		},
@@ -362,6 +363,88 @@ func TestAdminHandler_GetUsersHandler(t *testing.T) {
 				assert.Len(t, allowedEmails, len(tt.expectedAllowed))
 				assert.Len(t, adminEmails, len(tt.expectedAdmins))
 			}
+		})
+	}
+}
+
+func TestAdminHandler_GetConfigWithEnvironmentVariables(t *testing.T) {
+	tests := []struct {
+		name               string
+		allowedEmailsEnv   string
+		adminEmailsEnv     string
+		expectedAllowed    []string
+		expectedAdmins     []string
+	}{
+		{
+			name:             "should use ADMIN_EMAILS env var only",
+			allowedEmailsEnv: "",
+			adminEmailsEnv:   "admin@company.com,manager@company.com",
+			expectedAllowed:  []string{"admin@company.com", "manager@company.com"},
+			expectedAdmins:   []string{"admin@company.com", "manager@company.com"},
+		},
+		{
+			name:             "should use ALLOWED_EMAILS env var only",
+			allowedEmailsEnv: "user1@company.com,user2@company.com",
+			adminEmailsEnv:   "",
+			expectedAllowed:  []string{"user1@company.com", "user2@company.com"},
+			expectedAdmins:   []string{},
+		},
+		{
+			name:             "should combine both env vars",
+			allowedEmailsEnv: "user1@company.com,user2@company.com",
+			adminEmailsEnv:   "admin@company.com",
+			expectedAllowed:  []string{"user1@company.com", "user2@company.com", "admin@company.com"},
+			expectedAdmins:   []string{"admin@company.com"},
+		},
+		{
+			name:             "should handle empty env vars (demo mode)",
+			allowedEmailsEnv: "",
+			adminEmailsEnv:   "",
+			expectedAllowed:  []string{"demo@example.com", "user1@example.com", "user2@example.com", "test@example.com", "admin@example.com"},
+			expectedAdmins:   []string{"admin@example.com"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables
+			if tt.allowedEmailsEnv != "" {
+				os.Setenv("ALLOWED_EMAILS", tt.allowedEmailsEnv)
+			} else {
+				os.Unsetenv("ALLOWED_EMAILS")
+			}
+			if tt.adminEmailsEnv != "" {
+				os.Setenv("ADMIN_EMAILS", tt.adminEmailsEnv)
+			} else {
+				os.Unsetenv("ADMIN_EMAILS")
+			}
+			
+			// Ensure cleanup
+			defer func() {
+				os.Unsetenv("ALLOWED_EMAILS")
+				os.Unsetenv("ADMIN_EMAILS")
+			}()
+
+			// Setup
+			store := storage.NewMemoryStorage()
+			handler := NewAdminHandler(store)
+
+			// Create request
+			req := httptest.NewRequest("GET", "/admin/config", nil)
+			rr := httptest.NewRecorder()
+
+			// Execute
+			handler.GetConfigHandler(rr, req)
+
+			// Assert
+			assert.Equal(t, http.StatusOK, rr.Code)
+
+			var config models.AdminConfig
+			err := json.Unmarshal(rr.Body.Bytes(), &config)
+			require.NoError(t, err)
+			
+			assert.Equal(t, tt.expectedAllowed, config.AllowedEmails)
+			assert.Equal(t, tt.expectedAdmins, config.AdminEmails)
 		})
 	}
 }

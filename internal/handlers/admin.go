@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"watered/internal/models"
@@ -24,6 +25,20 @@ func NewAdminHandler(storage storage.Storage) *AdminHandler {
 	}
 }
 
+// getEmailsFromEnv parses comma-separated emails from environment variable
+func getEmailsFromEnv(envVar string, fallback []string) []string {
+	if envValue := os.Getenv(envVar); envValue != "" {
+		var emails []string
+		for _, email := range strings.Split(envValue, ",") {
+			if trimmed := strings.TrimSpace(email); trimmed != "" {
+				emails = append(emails, trimmed)
+			}
+		}
+		return emails
+	}
+	return fallback
+}
+
 // GetConfigHandler returns the current admin configuration
 func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) {
 	config, err := h.storage.GetAdminConfig()
@@ -34,10 +49,31 @@ func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) 
 
 	// If no config exists, create default
 	if config == nil {
+		// Get emails from environment variables, with empty fallback for production
+		allowedEmails := getEmailsFromEnv("ALLOWED_EMAILS", []string{})
+		adminEmails := getEmailsFromEnv("ADMIN_EMAILS", []string{})
+		
+		// In demo mode (no env vars set), provide demo defaults
+		if len(allowedEmails) == 0 && len(adminEmails) == 0 {
+			allowedEmails = []string{"demo@example.com", "user1@example.com", "user2@example.com", "test@example.com"}
+			adminEmails = []string{"admin@example.com"}
+		}
+		
+		// Ensure admin emails are also in allowed emails
+		allowedEmailsMap := make(map[string]bool)
+		for _, email := range allowedEmails {
+			allowedEmailsMap[email] = true
+		}
+		for _, email := range adminEmails {
+			if !allowedEmailsMap[email] {
+				allowedEmails = append(allowedEmails, email)
+			}
+		}
+		
 		config = &models.AdminConfig{
 			TimeoutHours:  24,
-			AllowedEmails: []string{"admin@example.com"},
-			AdminEmails:   []string{"admin@example.com"},
+			AllowedEmails: allowedEmails,
+			AdminEmails:   adminEmails,
 		}
 		if err := h.storage.UpdateAdminConfig(config); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to create default config: %v", err), http.StatusInternalServerError)
