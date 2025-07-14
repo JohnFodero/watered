@@ -135,8 +135,8 @@
                                 <span style="font-size: 2rem; color: var(--accent-color);" x-text="config.timeoutHours + 'h'"></span>
                             </div>
                             <div style="text-align: center; padding: 1rem; background-color: var(--primary-bg); border-radius: var(--border-radius);">
-                                <h4>System Status</h4>
-                                <span style="font-size: 2rem;" :style="getSystemStatusStyle()" x-text="getSystemStatusIcon()"></span>
+                                <h4>Uptime</h4>
+                                <span style="font-size: 2rem; color: var(--accent-color);" x-text="systemStatus.uptime || 'Loading...'"></span>
                             </div>
                         </div>
                     </div>
@@ -329,15 +329,17 @@
                             const status = await response.json();
                             this.systemStatus = {
                                 status: status.status === 'ok' ? 'healthy' : 'error',
-                                uptime: 0, // Not provided by current API
+                                uptime: status.uptime_formatted || 'Unknown',
                                 version: status.version || 'unknown'
                             };
                         } else {
                             this.systemStatus.status = 'error';
+                            this.systemStatus.uptime = 'Error';
                         }
                     } catch (error) {
                         console.error('Failed to load system status:', error);
                         this.systemStatus.status = 'error';
+                        this.systemStatus.uptime = 'Error';
                     }
                 },
 
