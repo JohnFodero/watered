@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -83,7 +84,10 @@ func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) 
 
 	// Always sync timeout with current plant state (plant is source of truth)
 	if plant, err := h.storage.GetPlantState(); err == nil && plant != nil {
+		log.Printf("DEBUG GetConfig: Plant timeout is %d hours, setting admin config to match", plant.TimeoutHours)
 		config.TimeoutHours = plant.TimeoutHours
+	} else {
+		log.Printf("DEBUG GetConfig: No plant found or error: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -162,11 +166,15 @@ func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Reque
 	}
 	
 	if plant != nil {
+		log.Printf("DEBUG UpdateTimeout: Updating plant timeout from %d to %d hours", plant.TimeoutHours, request.TimeoutHours)
 		plant.TimeoutHours = request.TimeoutHours
 		if err := h.storage.UpdatePlantState(plant); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to update plant timeout: %v", err), http.StatusInternalServerError)
 			return
 		}
+		log.Printf("DEBUG UpdateTimeout: Plant timeout successfully updated to %d hours", plant.TimeoutHours)
+	} else {
+		log.Printf("DEBUG UpdateTimeout: No plant found to update")
 	}
 
 	// Return success response

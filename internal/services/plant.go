@@ -30,10 +30,15 @@ func (s *PlantService) GetPlant() (*models.PlantState, error) {
 
 	// Create default plant if none exists
 	if plant == nil {
+		log.Printf("DEBUG GetPlant: No plant found, creating default plant with 24h timeout")
 		plant = s.createDefaultPlant()
 		if err := s.storage.UpdatePlantState(plant); err != nil {
 			log.Printf("Warning: failed to save default plant: %v", err)
+		} else {
+			log.Printf("DEBUG GetPlant: Default plant created and saved with %d hour timeout", plant.TimeoutHours)
 		}
+	} else {
+		log.Printf("DEBUG GetPlant: Found existing plant with %d hour timeout", plant.TimeoutHours)
 	}
 
 	return plant, nil

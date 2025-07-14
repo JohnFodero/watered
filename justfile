@@ -8,10 +8,20 @@ default:
 # Development Commands
 # ==================
 
-# Run the development server
+# Run the development server in debug mode (no Google auth required)
 run:
-    @echo "🚀 Starting Watered server..."
+    @echo "🐛 Starting Watered server in DEBUG mode..."
     @echo "💡 Demo login available at: http://localhost:8080/auth/demo-login"
+    @echo "🔐 Google OAuth DISABLED - using demo authentication"
+    @echo "📊 Debug logs ENABLED"
+    @echo ""
+    @unset GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET && go run cmd/server/main.go
+
+# Run the server with production OAuth (uses .env file settings)
+run-prod:
+    @echo "🚀 Starting Watered server in PRODUCTION mode..."
+    @echo "🔐 Google OAuth ENABLED - requires real authentication"
+    @echo "🌍 Using settings from .env file"
     go run cmd/server/main.go
 
 # Run the server with custom port
