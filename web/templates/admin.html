@@ -173,6 +173,12 @@
                     await this.loadConfig();
                     await this.loadPlantData();
                     await this.loadSystemStatus();
+                    
+                    // Auto-refresh plant data and system status every 30 seconds
+                    setInterval(async () => {
+                        await this.loadPlantData();
+                        await this.loadSystemStatus();
+                    }, 30000);
                 },
 
                 async loadConfig() {
@@ -300,10 +306,10 @@
                         const response = await fetch('/api/plant/');
                         if (response.ok) {
                             const plant = await response.json();
-                            if (plant.lastWatered) {
+                            if (plant.last_watered) {
                                 this.plantData = {
-                                    lastWatered: new Date(plant.lastWatered),
-                                    wateredBy: plant.wateredBy || 'Unknown'
+                                    lastWatered: new Date(plant.last_watered),
+                                    wateredBy: plant.watered_by || 'Unknown'
                                 };
                             }
                         }
