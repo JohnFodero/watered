@@ -170,7 +170,8 @@ func main() {
 		r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
 			user, _ := authService.GetCurrentUser(r)
 			templateData := map[string]interface{}{
-				"User": user,
+				"User":          user,
+				"Authenticated": user != nil,
 			}
 
 			if err := templates.ExecuteTemplate(w, "admin.html", templateData); err != nil {

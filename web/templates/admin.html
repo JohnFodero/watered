@@ -15,8 +15,12 @@
             <nav>
                 <ul class="nav-links">
                     <li><a href="/">Home</a></li>
-                    <li><a href="/admin">Admin</a></li>
-                    <li><a href="/login">Login</a></li>
+                    {{if .User}}
+                        {{if .User.IsAdmin}}<li><a href="/admin" class="active">Admin</a></li>{{end}}
+                        <li><form method="post" action="/auth/logout" style="display: inline;"><button type="submit" class="btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Logout ({{.User.Name}})</button></form></li>
+                    {{else}}
+                        <li><a href="/login">Login</a></li>
+                    {{end}}
                 </ul>
             </nav>
         </div>
