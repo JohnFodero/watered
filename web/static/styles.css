@@ -127,6 +127,42 @@ body {
   animation: sway 3s ease-in-out infinite;
 }
 
+/* Needs Water Plant */
+.plant-visual.needs-water {
+  background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  position: relative;
+}
+
+.plant-visual.needs-water::before {
+  content: '🌿';
+  font-size: 4rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.8;
+  animation: droop 2s ease-in-out infinite;
+}
+
+/* Critical Plant */
+.plant-visual.critical {
+  background: linear-gradient(135deg, #dc3545 0%, #6c757d 100%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  position: relative;
+}
+
+.plant-visual.critical::before {
+  content: '🥀';
+  font-size: 4rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.7;
+  animation: wilt 1.5s ease-in-out infinite;
+}
+
 /* Withered Plant */
 .plant-visual.withered {
   background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
@@ -147,6 +183,16 @@ body {
 @keyframes sway {
   0%, 100% { transform: translate(-50%, -50%) rotate(-3deg); }
   50% { transform: translate(-50%, -50%) rotate(3deg); }
+}
+
+@keyframes droop {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-5deg) scale(0.95); }
+  50% { transform: translate(-50%, -50%) rotate(-8deg) scale(0.9); }
+}
+
+@keyframes wilt {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-10deg) scale(0.85); }
+  50% { transform: translate(-50%, -50%) rotate(-15deg) scale(0.8); }
 }
 
 /* Plant Status */
