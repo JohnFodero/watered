@@ -67,4 +67,6 @@ temp/
 pids/
 *.pid
 *.seed
-*.pid.lock
+*.pid.lockcookies.txt
+.env.prod
+cookies.txt

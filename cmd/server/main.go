@@ -224,11 +224,17 @@ func main() {
 
 // loadEnvFiles loads environment variables from .env files in order of precedence
 func loadEnvFiles() {
+	// Check if we're in demo mode - if so, don't load any env files
+	if os.Getenv("WATERED_MODE") == "demo" {
+		log.Printf("Demo mode: Skipping environment file loading")
+		return
+	}
+
 	// Environment files to load in order of precedence (last wins)
+	// Note: .env.example is never loaded automatically - it's just a template
 	envFiles := []string{
-		".env.example", // Template with defaults (lowest priority)
-		".env",         // Main environment file
-		".env.local",   // Local overrides (highest priority)
+		".env",       // Main environment file
+		".env.local", // Local overrides (highest priority)
 	}
 
 	// Also check for environment-specific files
@@ -255,6 +261,7 @@ func loadEnvFiles() {
 
 // logConfigurationStatus logs the current configuration status
 func logConfigurationStatus() {
+	mode := getEnvOrDefault(os.Getenv("WATERED_MODE"), "production")
 	clientID := os.Getenv("GOOGLE_CLIENT_ID")
 	sessionSecret := os.Getenv("SESSION_SECRET")
 	allowedEmails := os.Getenv("ALLOWED_EMAILS")
@@ -262,14 +269,20 @@ func logConfigurationStatus() {
 	environment := os.Getenv("ENVIRONMENT")
 
 	log.Printf("Configuration Status:")
+	log.Printf("  Mode: %s", mode)
 	log.Printf("  Environment: %s", getEnvOrDefault(environment, "development"))
 
-	if clientID != "" && clientID != "demo-client-id" {
+	if mode == "demo" {
+		log.Printf("  OAuth Mode: Demo (Google OAuth disabled)")
+		log.Printf("  Demo Login: Available at /auth/demo-login")
+		log.Printf("  Security: Demo users only")
+	} else if clientID != "" && clientID != "demo-client-id" {
 		log.Printf("  OAuth Mode: Production (Google OAuth enabled)")
 		log.Printf("  Demo Login: Disabled")
 	} else {
-		log.Printf("  OAuth Mode: Demo (Google OAuth not configured)")
+		log.Printf("  OAuth Mode: Demo fallback (Google OAuth credentials missing)")
 		log.Printf("  Demo Login: Available at /auth/demo-login")
+		log.Printf("  Warning: Production mode requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET")
 	}
 
 	if sessionSecret != "" && sessionSecret != "development-secret-change-in-production" {

@@ -52,7 +52,12 @@ func NewAuthService(storage storage.Storage) *AuthService {
 		clientSecret = "demo-client-secret"
 	}
 
-	if sessionSecret == "" {
+	// Handle session secret based on mode
+	if os.Getenv("WATERED_MODE") == "demo" {
+		// Use fixed demo session secret for consistent demo experience
+		sessionSecret = "demo-session-secret-for-development-only"
+		log.Printf("Demo mode: Using fixed demo session secret")
+	} else if sessionSecret == "" {
 		sessionSecret = "development-secret-change-in-production"
 		log.Printf("Warning: SESSION_SECRET not set. Using development secret.")
 	} else {
@@ -358,6 +363,11 @@ func (a *AuthService) SetAllowedEmails(emails map[string]bool) {
 
 // IsDemoMode checks if we're running in demo mode (no real Google credentials)
 func (a *AuthService) IsDemoMode() bool {
+	// Check explicit demo mode first
+	if os.Getenv("WATERED_MODE") == "demo" {
+		return true
+	}
+	// Fallback to credential-based detection
 	return a.oauth2Config.ClientID == "demo-client-id"
 }
 
