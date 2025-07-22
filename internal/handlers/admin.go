@@ -53,13 +53,13 @@ func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) 
 		// Get emails from environment variables, with empty fallback for production
 		allowedEmails := getEmailsFromEnv("ALLOWED_EMAILS", []string{})
 		adminEmails := getEmailsFromEnv("ADMIN_EMAILS", []string{})
-		
+
 		// In demo mode (no env vars set), provide demo defaults
 		if len(allowedEmails) == 0 && len(adminEmails) == 0 {
 			allowedEmails = []string{"demo@example.com", "user1@example.com", "user2@example.com", "test@example.com"}
 			adminEmails = []string{"admin@example.com"}
 		}
-		
+
 		// Ensure admin emails are also in allowed emails
 		allowedEmailsMap := make(map[string]bool)
 		for _, email := range allowedEmails {
@@ -70,7 +70,7 @@ func (h *AdminHandler) GetConfigHandler(w http.ResponseWriter, r *http.Request) 
 				allowedEmails = append(allowedEmails, email)
 			}
 		}
-		
+
 		config = &models.AdminConfig{
 			TimeoutHours:  24, // This will be overridden below
 			AllowedEmails: allowedEmails,
@@ -125,13 +125,13 @@ func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Reque
 		// Use environment variable logic for initial config
 		allowedEmails := getEmailsFromEnv("ALLOWED_EMAILS", []string{})
 		adminEmails := getEmailsFromEnv("ADMIN_EMAILS", []string{})
-		
+
 		// In demo mode (no env vars set), provide demo defaults
 		if len(allowedEmails) == 0 && len(adminEmails) == 0 {
 			allowedEmails = []string{"demo@example.com", "user1@example.com", "user2@example.com", "test@example.com"}
 			adminEmails = []string{"admin@example.com"}
 		}
-		
+
 		// Ensure admin emails are also in allowed emails
 		allowedEmailsMap := make(map[string]bool)
 		for _, email := range allowedEmails {
@@ -142,7 +142,7 @@ func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Reque
 				allowedEmails = append(allowedEmails, email)
 			}
 		}
-		
+
 		config = &models.AdminConfig{
 			TimeoutHours:  request.TimeoutHours,
 			AllowedEmails: allowedEmails,
@@ -164,7 +164,7 @@ func (h *AdminHandler) UpdateTimeoutHandler(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Failed to get plant state: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	if plant != nil {
 		log.Printf("DEBUG UpdateTimeout: Updating plant timeout from %d to %d hours", plant.TimeoutHours, request.TimeoutHours)
 		plant.TimeoutHours = request.TimeoutHours

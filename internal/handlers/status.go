@@ -11,12 +11,12 @@ var serverStartTime = time.Now()
 
 // StatusResponse represents the API status response
 type StatusResponse struct {
-	Status         string    `json:"status"`
-	Service        string    `json:"service"`
-	Version        string    `json:"version"`
-	Timestamp      time.Time `json:"timestamp"`
-	UptimeSeconds  float64   `json:"uptime_seconds"`
-	UptimeFormatted string   `json:"uptime_formatted"`
+	Status          string    `json:"status"`
+	Service         string    `json:"service"`
+	Version         string    `json:"version"`
+	Timestamp       time.Time `json:"timestamp"`
+	UptimeSeconds   float64   `json:"uptime_seconds"`
+	UptimeFormatted string    `json:"uptime_formatted"`
 }
 
 // formatUptime formats uptime duration into human-readable string
@@ -47,7 +47,7 @@ func formatUptime(duration time.Duration) string {
 func GetStatus(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	uptime := now.Sub(serverStartTime)
-	
+
 	response := StatusResponse{
 		Status:          "ok",
 		Service:         "watered-api",

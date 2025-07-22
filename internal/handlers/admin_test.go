@@ -370,11 +370,11 @@ func TestAdminHandler_GetUsersHandler(t *testing.T) {
 
 func TestAdminHandler_GetConfigWithEnvironmentVariables(t *testing.T) {
 	tests := []struct {
-		name               string
-		allowedEmailsEnv   string
-		adminEmailsEnv     string
-		expectedAllowed    []string
-		expectedAdmins     []string
+		name             string
+		allowedEmailsEnv string
+		adminEmailsEnv   string
+		expectedAllowed  []string
+		expectedAdmins   []string
 	}{
 		{
 			name:             "should use ADMIN_EMAILS env var only",
@@ -419,7 +419,7 @@ func TestAdminHandler_GetConfigWithEnvironmentVariables(t *testing.T) {
 			} else {
 				os.Unsetenv("ADMIN_EMAILS")
 			}
-			
+
 			// Ensure cleanup
 			defer func() {
 				os.Unsetenv("ALLOWED_EMAILS")
@@ -443,7 +443,7 @@ func TestAdminHandler_GetConfigWithEnvironmentVariables(t *testing.T) {
 			var config models.AdminConfig
 			err := json.Unmarshal(rr.Body.Bytes(), &config)
 			require.NoError(t, err)
-			
+
 			assert.Equal(t, tt.expectedAllowed, config.AllowedEmails)
 			assert.Equal(t, tt.expectedAdmins, config.AdminEmails)
 		})
@@ -454,7 +454,7 @@ func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
 	t.Run("admin config should reflect plant timeout", func(t *testing.T) {
 		// Setup
 		store := storage.NewMemoryStorage()
-		
+
 		// Create plant with custom timeout
 		plant := &models.PlantState{
 			ID:           1,
@@ -462,7 +462,7 @@ func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
 			TimeoutHours: 48, // Different from default 24
 		}
 		store.UpdatePlantState(plant)
-		
+
 		handler := NewAdminHandler(store)
 
 		// Create request
@@ -478,7 +478,7 @@ func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
 		var config models.AdminConfig
 		err := json.Unmarshal(rr.Body.Bytes(), &config)
 		require.NoError(t, err)
-		
+
 		// Admin config timeout should match plant timeout
 		assert.Equal(t, 48, config.TimeoutHours)
 	})
@@ -486,7 +486,7 @@ func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
 	t.Run("updating admin timeout should update plant timeout", func(t *testing.T) {
 		// Setup
 		store := storage.NewMemoryStorage()
-		
+
 		// Create plant with initial timeout
 		plant := &models.PlantState{
 			ID:           1,
@@ -494,7 +494,7 @@ func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
 			TimeoutHours: 24,
 		}
 		store.UpdatePlantState(plant)
-		
+
 		handler := NewAdminHandler(store)
 
 		// Update timeout via admin endpoint
@@ -512,12 +512,12 @@ func TestAdminHandler_TimeoutSynchronization(t *testing.T) {
 		updatedPlant, err := store.GetPlantState()
 		require.NoError(t, err)
 		assert.Equal(t, 72, updatedPlant.TimeoutHours)
-		
+
 		// Verify admin config now returns the updated timeout
 		req2 := httptest.NewRequest("GET", "/admin/config", nil)
 		rr2 := httptest.NewRecorder()
 		handler.GetConfigHandler(rr2, req2)
-		
+
 		assert.Equal(t, http.StatusOK, rr2.Code)
 		var config models.AdminConfig
 		err = json.Unmarshal(rr2.Body.Bytes(), &config)
